@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@keyframes announcement-bounce {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) scale(1.02);
+  }
+}
+
+@keyframes announcement-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(249, 115, 22, 0.6), 0 0 40px rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(249, 115, 22, 0.8), 0 0 60px rgba(239, 68, 68, 0.6);
+  }
+}
+
+.announcement-button {
+  animation: announcement-bounce 2s ease-in-out infinite, announcement-glow 3s ease-in-out infinite;
+}
+
+.announcement-button:hover {
+  animation: none;
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 10px 40px rgba(239, 68, 68, 0.5);
+}
+
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scroll {
+  animation: scroll 30s linear infinite;
+  display: flex;
+  width: fit-content;
+}
+
+.animate-scroll:hover {
+  animation-play-state: paused;
+}

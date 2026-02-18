@@ -1,0 +1,1415 @@
+{
+	"info": {
+		"_postman_id": "cms-api-collection-2024",
+		"name": "College Management System API",
+		"description": "Complete API documentation for College Management System. All endpoints with request/response examples.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "cms-api"
+	},
+	"item": [
+		{
+			"name": "Health Check",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Check if the API server is running"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Admin Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.token) {",
+									"        pm.environment.set(\"admin_token\", jsonData.token);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"admin\",\n    \"password\": \"admin123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/admin/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"admin",
+								"login"
+							]
+						},
+						"description": "Login as admin. Returns JWT token."
+					},
+					"response": []
+				},
+				{
+					"name": "User Registration",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"fullName\": \"John Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"phone\": \"1234567890\",\n    \"department\": \"BCA\",\n    \"role\": \"student\",\n    \"password\": \"password123\",\n    \"confirmPassword\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						},
+						"description": "Register a new user. User will have 'pending' status until admin approval.\n\n**Required fields:**\n- fullName: string\n- email: string (unique)\n- phone: string\n- department: 'BCA' | 'BCom' | 'BA'\n- role: 'student' | 'teacher' | 'hod'\n- password: string (min 6 characters)\n- confirmPassword: string (must match password)"
+					},
+					"response": []
+				},
+				{
+					"name": "User Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.token) {",
+									"        pm.environment.set(\"user_token\", jsonData.token);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"john.doe@example.com\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login as a user. Only approved users can login.\n\n**Required fields:**\n- email: string\n- password: string"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current User",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/auth/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"me"
+							]
+						},
+						"description": "Get current authenticated user information. Requires authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"currentPassword\": \"password123\",\n    \"newPassword\": \"newpassword123\",\n    \"confirmPassword\": \"newpassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/change-password",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"change-password"
+							]
+						},
+						"description": "Change user password. Requires authentication.\n\n**Required fields:**\n- currentPassword: string\n- newPassword: string (min 6 characters)\n- confirmPassword: string (must match newPassword)"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Get Own Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/users/profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"profile"
+							]
+						},
+						"description": "Get own user profile. Requires authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Own Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"fullName\": \"John Doe Updated\",\n    \"phone\": \"9876543210\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"profile"
+							]
+						},
+						"description": "Update own user profile. Requires authentication.\n\n**Optional fields:**\n- fullName: string\n- phone: string"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pending Users (Admin Only)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/users/pending",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"pending"
+							]
+						},
+						"description": "Get all users with pending status. Admin only."
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Users (Admin Only)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/users",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"users"
+							]
+						},
+						"description": "Get all users. Admin only."
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Status (Admin Only)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"approved\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/:id/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"users",
+								":id",
+								"status"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "USER_ID_HERE",
+									"description": "User ID"
+								}
+							]
+						},
+						"description": "Update user status (pending/approved/rejected). Admin only.\n\n**Path Parameters:**\n- id: User ID\n\n**Required fields:**\n- status: 'pending' | 'approved' | 'rejected'"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Users By Role",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/users/by-role?role=student",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"by-role"
+							],
+							"query": [
+								{
+									"key": "role",
+									"value": "student",
+									"description": "Role: student, teacher, or hod"
+								}
+							]
+						},
+						"description": "Get users filtered by role. Non-admins see only users from their department.\n\n**Query Parameters:**\n- role: 'student' | 'teacher' | 'hod'"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Attendance",
+			"item": [
+				{
+					"name": "Mark Attendance",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userId\": \"USER_ID_HERE\",\n    \"role\": \"student\",\n    \"date\": \"2024-01-15\",\n    \"status\": \"present\",\n    \"department\": \"BCA\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/attendance",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"attendance"
+							]
+						},
+						"description": "Mark attendance for a user. Teacher, HOD, and Admin only.\n\n**Required fields:**\n- userId: ObjectId (User ID)\n- role: 'student' | 'teacher' | 'hod'\n- date: Date (ISO format or YYYY-MM-DD)\n- status: 'present' | 'absent'\n- department: 'BCA' | 'BCom' | 'BA'"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Attendance Records",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/attendance",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"attendance"
+							]
+						},
+						"description": "Get attendance records. Filtered by user role and department. All authenticated users."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Attendance Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/attendance/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"attendance",
+								"stats"
+							]
+						},
+						"description": "Get attendance statistics. All authenticated users."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Timetable",
+			"item": [
+				{
+					"name": "Create/Update Timetable",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"department\": \"BCA\",\n    \"role\": \"student\",\n    \"day\": \"Monday\",\n    \"subject\": \"Mathematics\",\n    \"timeSlot\": \"09:00 AM - 10:00 AM\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/timetable",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"timetable"
+							]
+						},
+						"description": "Create or update timetable entry. HOD and Admin only.\n\n**Required fields:**\n- department: 'BCA' | 'BCom' | 'BA'\n- role: 'student' | 'teacher' | 'hod'\n- day: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday'\n- subject: string\n- timeSlot: string"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Timetable",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/timetable",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"timetable"
+							]
+						},
+						"description": "Get timetable. Filtered by user role and department. All authenticated users."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Timetable Entry",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/timetable/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"timetable",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "TIMETABLE_ID_HERE",
+									"description": "Timetable entry ID"
+								}
+							]
+						},
+						"description": "Delete timetable entry. HOD and Admin only.\n\n**Path Parameters:**\n- id: Timetable entry ID"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Exams",
+			"item": [
+				{
+					"name": "Create Exam",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"department\": \"BCA\",\n    \"examName\": \"Mid-Term Examination 2024\",\n    \"subjects\": [\n        {\n            \"subjectName\": \"Mathematics\",\n            \"date\": \"2024-02-15\",\n            \"time\": \"09:00 AM - 12:00 PM\",\n            \"venue\": \"Hall A\"\n        },\n        {\n            \"subjectName\": \"Computer Science\",\n            \"date\": \"2024-02-16\",\n            \"time\": \"09:00 AM - 12:00 PM\",\n            \"venue\": \"Lab 1\"\n        }\n    ],\n    \"examSchedule\": {\n        \"startDate\": \"2024-02-15\",\n        \"endDate\": \"2024-02-25\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/exams",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"exams"
+							]
+						},
+						"description": "Create a new exam. Teacher, HOD, and Admin only.\n\n**Required fields:**\n- department: 'BCA' | 'BCom' | 'BA'\n- examName: string\n- subjects: array of objects with:\n  - subjectName: string\n  - date: Date (ISO format or YYYY-MM-DD)\n  - time: string\n  - venue: string (optional)\n- examSchedule: object with:\n  - startDate: Date\n  - endDate: Date"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Exams",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/exams",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"exams"
+							]
+						},
+						"description": "Get all exams. Filtered by user department. All authenticated users."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single Exam",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/exams/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"exams",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "EXAM_ID_HERE",
+									"description": "Exam ID"
+								}
+							]
+						},
+						"description": "Get a single exam by ID. All authenticated users.\n\n**Path Parameters:**\n- id: Exam ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Exam",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"examName\": \"Updated Mid-Term Examination 2024\",\n    \"subjects\": [\n        {\n            \"subjectName\": \"Mathematics\",\n            \"date\": \"2024-02-20\",\n            \"time\": \"09:00 AM - 12:00 PM\",\n            \"venue\": \"Hall B\"\n        }\n    ],\n    \"examSchedule\": {\n        \"startDate\": \"2024-02-20\",\n        \"endDate\": \"2024-02-28\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/exams/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"exams",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "EXAM_ID_HERE",
+									"description": "Exam ID"
+								}
+							]
+						},
+						"description": "Update an exam. Teacher, HOD, and Admin only.\n\n**Path Parameters:**\n- id: Exam ID\n\n**Optional fields:**\n- examName: string\n- subjects: array\n- examSchedule: object"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Exam",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/exams/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"exams",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "EXAM_ID_HERE",
+									"description": "Exam ID"
+								}
+							]
+						},
+						"description": "Delete an exam. HOD and Admin only.\n\n**Path Parameters:**\n- id: Exam ID"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Results",
+			"item": [
+				{
+					"name": "Create/Update Result",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"studentId\": \"STUDENT_ID_HERE\",\n    \"examId\": \"EXAM_ID_HERE\",\n    \"subject\": \"Mathematics\",\n    \"marks\": 85,\n    \"status\": \"pass\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/results",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"results"
+							]
+						},
+						"description": "Create or update a result. Teacher, HOD, and Admin only.\n\n**Required fields:**\n- studentId: ObjectId (Student User ID)\n- examId: ObjectId (Exam ID)\n- subject: string\n- marks: number (0-100)\n- status: 'pass' | 'fail'"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Results",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/results",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"results"
+							]
+						},
+						"description": "Get all results. Students see only their own results. Teachers/HOD see results from their department. All authenticated users."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single Result",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/results/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"results",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "RESULT_ID_HERE",
+									"description": "Result ID"
+								}
+							]
+						},
+						"description": "Get a single result by ID. All authenticated users.\n\n**Path Parameters:**\n- id: Result ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Result",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/results/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"results",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "RESULT_ID_HERE",
+									"description": "Result ID"
+								}
+							]
+						},
+						"description": "Delete a result. HOD and Admin only.\n\n**Path Parameters:**\n- id: Result ID"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Assignments",
+			"item": [
+				{
+					"name": "Create Assignment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"department\": \"BCA\",\n    \"subject\": \"Computer Science\",\n    \"questions\": \"1. Explain the concept of OOP.\\n2. Write a program to implement inheritance.\",\n    \"dueDate\": \"2024-02-20T23:59:59.000Z\",\n    \"marks\": 50\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/assignments",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"assignments"
+							]
+						},
+						"description": "Create a new assignment. Teacher, HOD, and Admin only.\n\n**Required fields:**\n- department: 'BCA' | 'BCom' | 'BA'\n- subject: string\n- questions: string\n- dueDate: Date (ISO format)\n- marks: number (min 0)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Assignments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/assignments",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"assignments"
+							]
+						},
+						"description": "Get all assignments. Filtered by user department. All authenticated users."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single Assignment",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/assignments/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"assignments",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "ASSIGNMENT_ID_HERE",
+									"description": "Assignment ID"
+								}
+							]
+						},
+						"description": "Get a single assignment by ID. All authenticated users.\n\n**Path Parameters:**\n- id: Assignment ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Assignment",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"subject\": \"Updated Computer Science\",\n    \"questions\": \"Updated questions here\",\n    \"dueDate\": \"2024-02-25T23:59:59.000Z\",\n    \"marks\": 60\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/assignments/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"assignments",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "ASSIGNMENT_ID_HERE",
+									"description": "Assignment ID"
+								}
+							]
+						},
+						"description": "Update an assignment. Teacher, HOD, and Admin only.\n\n**Path Parameters:**\n- id: Assignment ID\n\n**Optional fields:**\n- subject: string\n- questions: string\n- dueDate: Date\n- marks: number"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Assignment",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/assignments/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"assignments",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "ASSIGNMENT_ID_HERE",
+									"description": "Assignment ID"
+								}
+							]
+						},
+						"description": "Delete an assignment. HOD and Admin only.\n\n**Path Parameters:**\n- id: Assignment ID"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Notifications",
+			"item": [
+				{
+					"name": "Create Notification",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Important Announcement\",\n    \"description\": \"This is an important notification for all students.\",\n    \"media\": \"https://example.com/image.jpg\",\n    \"targetRole\": \"student\",\n    \"department\": \"BCA\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/notifications",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"notifications"
+							]
+						},
+						"description": "Create a new notification. HOD and Admin only.\n\n**Required fields:**\n- title: string\n- description: string\n- media: string (optional, URL)\n- targetRole: 'student' | 'teacher' | 'hod' | 'all'\n- department: 'BCA' | 'BCom' | 'BA' | 'all'"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Notifications",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/notifications",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"notifications"
+							]
+						},
+						"description": "Get all notifications. Filtered by user role and department. All authenticated users."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single Notification",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/notifications/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "NOTIFICATION_ID_HERE",
+									"description": "Notification ID"
+								}
+							]
+						},
+						"description": "Get a single notification by ID. All authenticated users.\n\n**Path Parameters:**\n- id: Notification ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Notification",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Updated Important Announcement\",\n    \"description\": \"Updated description here\",\n    \"media\": \"https://example.com/updated-image.jpg\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/notifications/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "NOTIFICATION_ID_HERE",
+									"description": "Notification ID"
+								}
+							]
+						},
+						"description": "Update a notification. HOD and Admin only.\n\n**Path Parameters:**\n- id: Notification ID\n\n**Optional fields:**\n- title: string\n- description: string\n- media: string"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Notification",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/notifications/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "NOTIFICATION_ID_HERE",
+									"description": "Notification ID"
+								}
+							]
+						},
+						"description": "Delete a notification. HOD and Admin only.\n\n**Path Parameters:**\n- id: Notification ID"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Leave Requests",
+			"item": [
+				{
+					"name": "Create Leave Request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reason\": \"Medical emergency - need to visit doctor\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/leave-requests",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"leave-requests"
+							]
+						},
+						"description": "Create a new leave request. All authenticated users.\n\n**Required fields:**\n- reason: string"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Leave Requests",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/leave-requests",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"leave-requests"
+							]
+						},
+						"description": "Get all leave requests. Students see only their own. Teachers see their own. HOD sees teacher requests. Admin sees all. All authenticated users."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Single Leave Request",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/leave-requests/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"leave-requests",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "LEAVE_REQUEST_ID_HERE",
+									"description": "Leave Request ID"
+								}
+							]
+						},
+						"description": "Get a single leave request by ID. All authenticated users.\n\n**Path Parameters:**\n- id: Leave Request ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Leave Request Status",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"approved\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/leave-requests/:id/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"leave-requests",
+								":id",
+								"status"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "LEAVE_REQUEST_ID_HERE",
+									"description": "Leave Request ID"
+								}
+							]
+						},
+						"description": "Approve or reject a leave request. HOD can approve/reject teacher requests. Admin can approve/reject all requests.\n\n**Path Parameters:**\n- id: Leave Request ID\n\n**Required fields:**\n- status: 'approved' | 'rejected'"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Leave Request",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/leave-requests/:id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"leave-requests",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "LEAVE_REQUEST_ID_HERE",
+									"description": "Leave Request ID"
+								}
+							]
+						},
+						"description": "Delete a leave request. Users can delete their own requests. Admin can delete any request.\n\n**Path Parameters:**\n- id: Leave Request ID"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Dashboard",
+			"item": [
+				{
+					"name": "Get Dashboard Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"dashboard",
+								"stats"
+							]
+						},
+						"description": "Get dashboard statistics. Returns different stats based on user role. All authenticated users."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "admin_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
+
