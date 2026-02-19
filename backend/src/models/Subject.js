@@ -31,6 +31,21 @@ const subjectSchema = new mongoose.Schema(
       min: 1,
       max: 10,
     },
+    hoursPerWeek: {
+      type: Number,
+      required: [true, 'Hours per week is required'],
+      min: 1,
+      max: 10,
+    },
+    subjectType: {
+      type: String,
+      enum: ['theory', 'practical', 'lab'],
+      default: 'theory',
+    },
+    assignedTeacher: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
     description: {
       type: String,
       trim: true,

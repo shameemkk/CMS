@@ -1,30 +1,28 @@
-#!/usr/bin/env node
-
-/**
- * Standalone script to run the data seeder
- * Usage: node src/utils/runSeeder.js
- */
-
 import mongoose from 'mongoose';
 import seedData from './seeder.js';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import { config } from '../config/env.js';
 
 const runSeeder = async () => {
   try {
-    console.log('Connecting to MongoDB...');
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✓ Connected to MongoDB');
+    console.log('🌱 Starting database seeding...');
     
+    // Connect to MongoDB
+    await mongoose.connect(config.mongodb.uri);
+    console.log('✅ Connected to MongoDB');
+    
+    // Run seeder
     await seedData();
     
-    await mongoose.disconnect();
-    console.log('✓ Disconnected from MongoDB');
-    process.exit(0);
+    console.log('🎉 Database seeding completed successfully!');
+    
   } catch (error) {
-    console.error('❌ Seeder failed:', error);
+    console.error('❌ Seeding failed:', error.message);
     process.exit(1);
+  } finally {
+    // Disconnect from MongoDB
+    await mongoose.disconnect();
+    console.log('📤 Disconnected from MongoDB');
+    process.exit(0);
   }
 };
 

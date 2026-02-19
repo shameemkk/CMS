@@ -7,7 +7,7 @@ import { asyncHandler } from '../utils/errorHandler.js';
  * @access  Private (HOD, Admin)
  */
 export const createSubject = asyncHandler(async (req, res) => {
-  const { name, code, department, semester, credits, description } = req.body;
+  const { name, code, department, semester, credits, hoursPerWeek, subjectType, description } = req.body;
 
   // Check permissions - only HOD and Admin can create subjects
   if (!['hod', 'admin'].includes(req.userRole)) {
@@ -31,6 +31,8 @@ export const createSubject = asyncHandler(async (req, res) => {
     department,
     semester,
     credits,
+    hoursPerWeek: hoursPerWeek || 3,
+    subjectType: subjectType || 'theory',
     description,
     createdBy: req.userId,
   });
@@ -74,6 +76,7 @@ export const getSubjects = asyncHandler(async (req, res) => {
 
   const subjects = await Subject.find(query)
     .populate('createdBy', 'fullName')
+    .populate('assignedTeacher', 'fullName email specialization')
     .sort({ department: 1, semester: 1, name: 1 });
 
   res.status(200).json({
@@ -89,7 +92,7 @@ export const getSubjects = asyncHandler(async (req, res) => {
  * @access  Private (HOD, Admin)
  */
 export const updateSubject = asyncHandler(async (req, res) => {
-  const { name, code, department, semester, credits, description, status } = req.body;
+  const { name, code, department, semester, credits, hoursPerWeek, subjectType, description, status, assignedTeacher } = req.body;
 
   // Check permissions
   if (!['hod', 'admin'].includes(req.userRole)) {
@@ -122,11 +125,15 @@ export const updateSubject = asyncHandler(async (req, res) => {
   if (department) subject.department = department;
   if (semester) subject.semester = semester;
   if (credits) subject.credits = credits;
+  if (hoursPerWeek) subject.hoursPerWeek = hoursPerWeek;
+  if (subjectType) subject.subjectType = subjectType;
   if (description !== undefined) subject.description = description;
   if (status) subject.status = status;
+  if (assignedTeacher !== undefined) subject.assignedTeacher = assignedTeacher || null;
 
   await subject.save();
   await subject.populate('createdBy', 'fullName');
+  await subject.populate('assignedTeacher', 'fullName email specialization');
 
   res.status(200).json({
     success: true,

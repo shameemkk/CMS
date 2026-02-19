@@ -1,218 +1,417 @@
-import TimeTable from '../models/TimeTable.js';
-import User from '../models/User.js';
-import { asyncHandler } from '../utils/errorHandler.js';
+import Timetable from '../models/Timetable.js';
+import Subject from '../models/Subject.js';
+import { ApiError } from '../utils/ApiError.js';
+import { ApiResponse } from '../utils/ApiResponse.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
-// 5 slots, 9 AM - 4 PM, with longer lunch break (12:00 - 1:30 PM)
-const VALID_TIME_SLOTS = [
-  '9:00 AM - 10:00 AM',
-  '10:00 AM - 11:00 AM',
-  '11:00 AM - 12:00 PM',
-  '1:30 PM - 2:45 PM',
-  '2:45 PM - 4:00 PM',
+// Time slots configuration
+const TIME_SLOTS = [
+  { startTime: '09:30', endTime: '10:30' },  // 1st period
+  { startTime: '10:30', endTime: '11:20' },  // 2nd period
+  // 11:20 - 11:30 break (10 min)
+  { startTime: '11:30', endTime: '12:30' },  // 3rd period
+  // 12:30 - 13:30 lunch break (1 hour)
+  { startTime: '13:30', endTime: '14:30' },  // 4th period
+  { startTime: '14:30', endTime: '15:30' },  // 5th period
 ];
 
-const VALID_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-/**
- * @desc    Create/Update Timetable
- * @route   POST /api/timetable
- * @access  Private (Teacher, HOD)
- */
-export const createTimetable = asyncHandler(async (req, res) => {
-  const { day, subject, timeSlot } = req.body;
+// Generate automatic timetable
+const generateTimetable = asyncHandler(async (req, res) => {
+  const { department, semester } = req.body;
 
-  // Auto-detect role from logged-in user (teacher or HOD only)
-  const role = req.userRole;
-
-  if (!day || !subject || !timeSlot) {
-    return res.status(400).json({
-      success: false,
-      message: 'Day, subject, and timeSlot are required',
-    });
+  if (!department || !semester) {
+    throw new ApiError(400, 'Department and semester are required');
   }
 
-  if (!['teacher', 'hod'].includes(role)) {
-    return res.status(403).json({
-      success: false,
-      message: 'Only teachers and HODs can edit timetable',
-    });
+  // HODs can only generate timetables for their own department
+  if (req.user.role === 'hod' && req.user.department !== department) {
+    throw new ApiError(403, 'You can only generate timetables for your own department');
   }
 
-  if (!VALID_DAYS.includes(day)) {
-    return res.status(400).json({
-      success: false,
-      message: 'Day must be Monday to Friday',
+  try {
+    // Check if timetable already exists
+    const existingTimetable = await Timetable.findOne({
+      department,
+      semester,
+      status: { $in: ['active', 'draft'] }
     });
-  }
 
-  if (!VALID_TIME_SLOTS.includes(timeSlot)) {
-    return res.status(400).json({
-      success: false,
-      message: 'Invalid time slot. Must be one of: 9:00 AM - 10:00 AM, 10:00 AM - 11:00 AM, 11:00 AM - 12:00 PM, 1:30 PM - 2:45 PM, 2:45 PM - 4:00 PM',
-    });
-  }
-
-  // Use user's department (teacher/HOD)
-  const departmentValue = req.userDepartment;
-
-  const createdByValue = req.userId;
-
-  // Check if entry already exists
-  const existingEntry = await TimeTable.findOne({
-    department: departmentValue,
-    role,
-    day,
-    timeSlot,
-  });
-
-  if (existingEntry) {
-    // Update existing entry
-    existingEntry.subject = subject;
-    existingEntry.createdBy = createdByValue;
-    await existingEntry.save();
-
-    // Format createdBy in response
-    const timetableObj = existingEntry.toObject();
-    if (timetableObj.createdBy === 'admin') {
-      timetableObj.createdBy = { _id: 'admin', fullName: 'Admin' };
-    } else {
-      const createdByUser = await User.findById(timetableObj.createdBy).select('fullName');
-      timetableObj.createdBy = createdByUser
-        ? { _id: createdByUser._id, fullName: createdByUser.fullName }
-        : timetableObj.createdBy;
+    if (existingTimetable) {
+      throw new ApiError(400, 'Timetable already exists for this department and semester');
     }
 
-    return res.status(200).json({
-      success: true,
-      message: 'Timetable updated successfully',
-      timetable: timetableObj,
+    // Get all subjects for the department and semester
+    const subjects = await Subject.find({
+      department,
+      semester,
+      status: 'active'
+    }).populate('assignedTeacher');
+
+    if (subjects.length === 0) {
+      throw new ApiError(404, 'No subjects found for the specified department and semester');
+    }
+
+    // Validate that all subjects have assigned teachers
+    const subjectsWithoutTeachers = subjects.filter(subject => !subject.assignedTeacher);
+    if (subjectsWithoutTeachers.length > 0) {
+      throw new ApiError(400, `Some subjects don't have assigned teachers: ${subjectsWithoutTeachers.map(s => s.name).join(', ')}`);
+    }
+
+    // Get existing active timetables for the same semester type (odd/even)
+    // Odd semesters: 1, 3, 5, 7 | Even semesters: 2, 4, 6, 8
+    const isOddSemester = semester % 2 === 1;
+    const activeSemesters = isOddSemester 
+      ? [1, 3, 5, 7] 
+      : [2, 4, 6, 8];
+    
+    const existingTimetables = await Timetable.find({
+      department,
+      semester: { $in: activeSemesters, $ne: semester },
+      status: 'active'
+    }).populate('timeSlots.teacher');
+
+    // Generate timetable slots with conflict checking
+    const timeSlots = generateTimeSlots(subjects, existingTimetables);
+
+    // Create new timetable
+    const timetable = new Timetable({
+      department,
+      semester,
+      timeSlots,
+      createdBy: req.user._id,
+      status: 'draft'
     });
+
+    await timetable.save();
+
+    // Populate the created timetable
+    const populatedTimetable = await Timetable.findById(timetable._id)
+      .populate('timeSlots.subject')
+      .populate('timeSlots.teacher')
+      .populate('createdBy', 'fullName email');
+
+    res.status(201).json(
+      new ApiResponse(201, populatedTimetable, 'Timetable generated successfully')
+    );
+
+  } catch (error) {
+    throw new ApiError(500, `Failed to generate timetable: ${error.message}`);
   }
-
-  // Create new entry
-  const timetable = await TimeTable.create({
-    department: departmentValue,
-    role,
-    day,
-    subject,
-    timeSlot,
-    createdBy: createdByValue,
-  });
-
-  // Format createdBy in response
-  const timetableObj = timetable.toObject();
-  if (timetableObj.createdBy === 'admin') {
-    timetableObj.createdBy = { _id: 'admin', fullName: 'Admin' };
-  } else {
-    const createdByUser = await User.findById(timetableObj.createdBy).select('fullName');
-    timetableObj.createdBy = createdByUser
-      ? { _id: createdByUser._id, fullName: createdByUser.fullName }
-      : timetableObj.createdBy;
-  }
-
-  res.status(201).json({
-    success: true,
-    message: 'Timetable created successfully',
-    timetable: timetableObj,
-  });
 });
 
-/**
- * @desc    Get Timetable
- * @route   GET /api/timetable
- * @access  Private
- */
-export const getTimetable = asyncHandler(async (req, res) => {
-  const { department, day } = req.query;
+// Helper function to generate time slots
+function generateTimeSlots(subjects, existingTimetables = []) {
+  const timeSlots = [];
+  const teacherSchedule = new Map(); // Track teacher availability
+  const subjectHoursScheduled = new Map(); // Track hours scheduled per subject
 
-  const query = {};
+  // Initialize subject hours tracking
+  subjects.forEach(subject => {
+    subjectHoursScheduled.set(subject._id.toString(), 0);
+  });
 
-  // Filter by department
-  if (department) {
-    query.department = department;
-  } else if (req.userRole !== 'admin') {
-    query.department = req.userDepartment;
-  }
+  // Initialize teacher schedule
+  subjects.forEach(subject => {
+    if (subject.assignedTeacher) {
+      teacherSchedule.set(subject.assignedTeacher._id.toString(), new Set());
+    }
+  });
 
-  // Auto-detect role from logged-in user
-  if (['teacher', 'hod'].includes(req.userRole)) {
-    query.role = req.userRole;
-  } else if (req.userRole === 'admin') {
-    // Admin can pass role in query; default to teacher
-    query.role = req.query.role || 'teacher';
-  } else {
-    // Students see teacher timetable
-    query.role = 'teacher';
-  }
+  // Block out time slots where teachers are already scheduled in other active timetables
+  existingTimetables.forEach(timetable => {
+    if (timetable.timeSlots) {
+      timetable.timeSlots.forEach(slot => {
+        if (slot.teacher && slot.teacher._id) {
+          const teacherId = slot.teacher._id.toString();
+          const slotKey = `${slot.day}-${slot.startTime}-${slot.endTime}`;
+          
+          // Initialize teacher schedule if not exists
+          if (!teacherSchedule.has(teacherId)) {
+            teacherSchedule.set(teacherId, new Set());
+          }
+          
+          // Mark this slot as occupied for this teacher
+          teacherSchedule.get(teacherId).add(slotKey);
+        }
+      });
+    }
+  });
 
-  // Filter by day
-  if (day) {
-    query.day = day;
-  }
+  // Generate slots for each day
+  for (const day of DAYS) {
+    for (let slotIndex = 0; slotIndex < TIME_SLOTS.length; slotIndex++) {
+      const timeSlot = TIME_SLOTS[slotIndex];
+      
+      // Find a suitable subject for this slot
+      const suitableSubject = findSuitableSubject(
+        subjects,
+        subjectHoursScheduled,
+        teacherSchedule,
+        day,
+        slotIndex,
+        timeSlot
+      );
 
-  const timetable = await TimeTable.find(query)
-    .sort({ day: 1, timeSlot: 1 });
+      if (suitableSubject) {
+        const slot = {
+          day,
+          startTime: timeSlot.startTime,
+          endTime: timeSlot.endTime,
+          subject: suitableSubject._id,
+          teacher: suitableSubject.assignedTeacher._id,
+          subjectType: suitableSubject.subjectType,
+          room: generateRoomNumber(suitableSubject.subjectType)
+        };
 
-  // Manually populate createdBy only if it's an ObjectId (not 'admin')
-  const timetableWithCreatedBy = await Promise.all(
-    timetable.map(async (record) => {
-      const timetableObj = record.toObject();
-      if (timetableObj.createdBy && timetableObj.createdBy !== 'admin') {
-        const createdByUser = await User.findById(timetableObj.createdBy).select('fullName');
-        timetableObj.createdBy = createdByUser
-          ? { _id: createdByUser._id, fullName: createdByUser.fullName }
-          : timetableObj.createdBy;
-      } else if (timetableObj.createdBy === 'admin') {
-        timetableObj.createdBy = { _id: 'admin', fullName: 'Admin' };
+        timeSlots.push(slot);
+
+        // Update tracking
+        const subjectId = suitableSubject._id.toString();
+        const teacherId = suitableSubject.assignedTeacher._id.toString();
+        
+        subjectHoursScheduled.set(subjectId, subjectHoursScheduled.get(subjectId) + 1);
+        
+        // Mark this specific time slot as occupied
+        const slotKey = `${day}-${timeSlot.startTime}-${timeSlot.endTime}`;
+        teacherSchedule.get(teacherId).add(slotKey);
       }
-      return timetableObj;
-    })
+    }
+  }
+
+  return timeSlots;
+}
+
+// Helper function to shuffle an array (Fisher-Yates algorithm)
+function shuffleArray(array) {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+// Helper function to find suitable subject for a time slot
+function findSuitableSubject(subjects, subjectHoursScheduled, teacherSchedule, day, slotIndex, timeSlot) {
+  // Filter available subjects
+  const availableSubjects = subjects.filter(subject => {
+    const subjectId = subject._id.toString();
+    const teacherId = subject.assignedTeacher._id.toString();
+    const hoursScheduled = subjectHoursScheduled.get(subjectId);
+    
+    // Check if subject still needs more hours
+    if (hoursScheduled >= subject.hoursPerWeek) {
+      return false;
+    }
+
+    // Check if teacher is available for this specific time slot
+    const slotKey = `${day}-${timeSlot.startTime}-${timeSlot.endTime}`;
+    if (teacherSchedule.get(teacherId).has(slotKey)) {
+      return false;
+    }
+
+    // Lab subjects should be scheduled in consecutive slots when possible
+    if (subject.subjectType === 'lab' && slotIndex < TIME_SLOTS.length - 1) {
+      const nextTimeSlot = TIME_SLOTS[slotIndex + 1];
+      const nextSlotKey = `${day}-${nextTimeSlot.startTime}-${nextTimeSlot.endTime}`;
+      if (teacherSchedule.get(teacherId).has(nextSlotKey)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  if (availableSubjects.length === 0) {
+    return null;
+  }
+
+  // Sort by priority: subjects with fewer scheduled hours first
+  availableSubjects.sort((a, b) => {
+    const aScheduled = subjectHoursScheduled.get(a._id.toString());
+    const bScheduled = subjectHoursScheduled.get(b._id.toString());
+    
+    if (aScheduled !== bScheduled) {
+      return aScheduled - bScheduled;
+    }
+    
+    // If same scheduled hours, prioritize subjects with more total hours needed
+    return b.hoursPerWeek - a.hoursPerWeek;
+  });
+
+  // Get subjects with the same priority (same number of scheduled hours)
+  const minScheduled = subjectHoursScheduled.get(availableSubjects[0]._id.toString());
+  const samePrioritySubjects = availableSubjects.filter(subject => 
+    subjectHoursScheduled.get(subject._id.toString()) === minScheduled
   );
 
-  res.status(200).json({
-    success: true,
-    count: timetableWithCreatedBy.length,
-    timetable: timetableWithCreatedBy,
-  });
-});
+  // Shuffle subjects with same priority to add randomness
+  if (samePrioritySubjects.length > 1) {
+    const shuffled = shuffleArray(samePrioritySubjects);
+    return shuffled[0];
+  }
 
-/**
- * @desc    Delete Timetable Entry
- * @route   DELETE /api/timetable/:id
- * @access  Private (Teacher, HOD)
- */
-export const deleteTimetableEntry = asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  return availableSubjects[0];
+}
 
-  const timetable = await TimeTable.findById(id);
+// Helper function to generate room numbers
+function generateRoomNumber(subjectType) {
+  const roomPrefixes = {
+    'theory': 'R',
+    'lab': 'L',
+    'practical': 'P'
+  };
+  
+  const prefix = roomPrefixes[subjectType] || 'R';
+  const roomNumber = Math.floor(Math.random() * 20) + 101; // Random room between 101-120
+  
+  return `${prefix}-${roomNumber}`;
+}
+
+// Get timetable by department and semester
+const getTimetable = asyncHandler(async (req, res) => {
+  const { department, semester } = req.params;
+
+  const timetable = await Timetable.findOne({
+    department,
+    semester,
+    status: { $in: ['active', 'draft'] }
+  })
+    .populate('timeSlots.subject')
+    .populate('timeSlots.teacher', 'fullName email')
+    .populate('createdBy', 'fullName email');
 
   if (!timetable) {
-    return res.status(404).json({
-      success: false,
-      message: 'Timetable entry not found',
-    });
+    throw new ApiError(404, 'Timetable not found');
   }
 
-  // Check permissions - teacher/HOD can only delete their own role's entries in their department
-  if (!['teacher', 'hod'].includes(req.userRole)) {
-    return res.status(403).json({
-      success: false,
-      message: 'Only teachers and HODs can delete timetable entries',
-    });
-  }
-  if (timetable.department !== req.userDepartment || timetable.role !== req.userRole) {
-    return res.status(403).json({
-      success: false,
-      message: 'You can only delete your own timetable entries',
-    });
-  }
-
-  await TimeTable.findByIdAndDelete(id);
-
-  res.status(200).json({
-    success: true,
-    message: 'Timetable entry deleted successfully',
-  });
+  res.status(200).json(
+    new ApiResponse(200, timetable, 'Timetable retrieved successfully')
+  );
 });
 
+// Get all timetables
+const getAllTimetables = asyncHandler(async (req, res) => {
+  const { department, status } = req.query;
+  
+  const filter = {};
+  
+  // HODs can only view timetables for their own department
+  if (req.user.role === 'hod') {
+    filter.department = req.user.department;
+  } else if (department) {
+    // Admins can filter by department
+    filter.department = department;
+  }
+  
+  if (status) filter.status = status;
 
+  const timetables = await Timetable.find(filter)
+    .populate('createdBy', 'fullName email')
+    .sort({ department: 1, semester: 1 });
+
+  res.status(200).json(
+    new ApiResponse(200, timetables, 'Timetables retrieved successfully')
+  );
+});
+
+// Update timetable status
+const updateTimetableStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!['draft', 'active', 'archived'].includes(status)) {
+    throw new ApiError(400, 'Invalid status. Must be draft, active, or archived');
+  }
+
+  const timetable = await Timetable.findById(id);
+  if (!timetable) {
+    throw new ApiError(404, 'Timetable not found');
+  }
+
+  // If activating, deactivate other timetables for same department/semester
+  if (status === 'active') {
+    await Timetable.updateMany(
+      {
+        department: timetable.department,
+        semester: timetable.semester,
+        _id: { $ne: id }
+      },
+      { status: 'archived' }
+    );
+  }
+
+  timetable.status = status;
+  timetable.lastModifiedBy = req.user._id;
+  await timetable.save();
+
+  const updatedTimetable = await Timetable.findById(id)
+    .populate('timeSlots.subject')
+    .populate('timeSlots.teacher', 'fullName email')
+    .populate('createdBy', 'fullName email')
+    .populate('lastModifiedBy', 'fullName email');
+
+  res.status(200).json(
+    new ApiResponse(200, updatedTimetable, 'Timetable status updated successfully')
+  );
+});
+
+// Delete timetable
+const deleteTimetable = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const timetable = await Timetable.findById(id);
+  if (!timetable) {
+    throw new ApiError(404, 'Timetable not found');
+  }
+
+  await Timetable.findByIdAndDelete(id);
+
+  res.status(200).json(
+    new ApiResponse(200, null, 'Timetable deleted successfully')
+  );
+});
+
+// Get teacher's timetable
+const getTeacherTimetable = asyncHandler(async (req, res) => {
+  const teacherId = req.user.role === 'teacher' ? req.user._id : req.params.teacherId;
+
+  const timetables = await Timetable.find({
+    'timeSlots.teacher': teacherId,
+    status: 'active'
+  })
+    .populate('timeSlots.subject')
+    .populate('timeSlots.teacher', 'fullName email');
+
+  // Filter and format the response to show only teacher's slots
+  const teacherSchedule = [];
+  
+  timetables.forEach(timetable => {
+    const teacherSlots = timetable.timeSlots.filter(
+      slot => slot.teacher._id.toString() === teacherId.toString()
+    );
+    
+    if (teacherSlots.length > 0) {
+      teacherSchedule.push({
+        department: timetable.department,
+        semester: timetable.semester,
+        timeSlots: teacherSlots
+      });
+    }
+  });
+
+  res.status(200).json(
+    new ApiResponse(200, teacherSchedule, 'Teacher timetable retrieved successfully')
+  );
+});
+
+export {
+  generateTimetable,
+  getTimetable,
+  getAllTimetables,
+  updateTimetableStatus,
+  deleteTimetable,
+  getTeacherTimetable
+};

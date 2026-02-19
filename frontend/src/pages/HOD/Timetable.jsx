@@ -1,6 +1,6 @@
 ﻿import React from 'react';
-import Timetable from '../shared/Timetable';
+import TimetableManagement from '../Admin/TimetableManagement';
 
-const HodTimetable = () => <Timetable />;
+const HodTimetable = () => <TimetableManagement />;
 
 export default HodTimetable;

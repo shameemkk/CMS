@@ -40,6 +40,7 @@ const Attendance = () => {
   const [showRecordsModal, setShowRecordsModal] = useState(false);
   const [selectedSlotRecords, setSelectedSlotRecords] = useState([]);
   const [selectedSlotInfo, setSelectedSlotInfo] = useState({ date: '', slot: '' });
+  const [nameModalStudent, setNameModalStudent] = useState(null); // { siNumber, fullName } | null
 
   const canMark = useMemo(() => ['teacher', 'hod', 'admin'].includes(user?.role), [user?.role]);
 
@@ -194,7 +195,8 @@ const Attendance = () => {
         records,
       });
       await loadRecords();
-      setShowStudentModal(false); // Close modal after successful save
+      setShowStudentModal(false);
+      setNameModalStudent(null);
     } catch (err) {
       setError(err.message || 'Failed to mark attendance');
     } finally {
@@ -283,8 +285,8 @@ const Attendance = () => {
       {/* Student List Modal */}
       {showStudentModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
               <div>
                 <h3 className="text-xl font-bold text-[#6e0718]">Mark Attendance</h3>
                 <p className="text-gray-600 text-sm mt-1">
@@ -292,19 +294,19 @@ const Attendance = () => {
                 </p>
               </div>
               <button
-                onClick={() => setShowStudentModal(false)}
+                onClick={() => { setShowStudentModal(false); setNameModalStudent(null); }}
                 className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
               >
                 ×
               </button>
             </div>
             
-            <div className="p-6">
+            <div className="flex-1 overflow-y-auto min-h-0 p-6">
               <p className="text-gray-600 mb-4">
                 Set status per student: <span className="text-green-600 font-semibold">Present</span>, <span className="text-yellow-600 font-semibold">Late</span>, or <span className="text-red-600 font-semibold">Absent</span>.
               </p>
               
-              <form onSubmit={handleMarkAttendanceBulk} className="space-y-4">
+              <form id="mark-attendance-form" onSubmit={handleMarkAttendanceBulk} className="space-y-4">
                 <div className="flex flex-wrap gap-2 items-center mb-4">
                   {STATUS_OPTIONS.map((opt) => (
                     <button
@@ -318,11 +320,11 @@ const Attendance = () => {
                   ))}
                 </div>
                 
-                <div className="border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto bg-gray-50">
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                     {users
                       .sort((a, b) => a.fullName.localeCompare(b.fullName))
-                      .map((u) => {
+                      .map((u, index) => {
                         const current = statusMap[u.id] || 'present';
                         const opt = STATUS_OPTIONS.find((o) => o.value === current);
                         return (
@@ -330,10 +332,15 @@ const Attendance = () => {
                             key={u.id}
                             className={`flex items-center gap-2 px-3 py-2 rounded-lg ${opt?.bg || 'bg-green-50'} border border-transparent`}
                           >
-                            <span className="text-sm font-medium text-gray-800 truncate flex-1">
-                              {u.fullName}
-                            </span>
-                            <div className="flex gap-1 flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setNameModalStudent({ siNumber: index + 1, fullName: u.fullName })}
+                              className="text-sm font-medium text-[#6e0718] w-6 shrink-0 hover:underline focus:outline-none focus:ring-2 focus:ring-[#6e0718] focus:ring-offset-1 rounded"
+                              title="Click to show name"
+                            >
+                              {index + 1}
+                            </button>
+                            <div className="flex gap-1 flex-shrink-0 flex-1 justify-end">
                               {STATUS_OPTIONS.map((s) => (
                                 <button
                                   key={s.value}
@@ -353,25 +360,49 @@ const Attendance = () => {
                     <p className="text-gray-500 text-center py-4">No students to mark.</p>
                   )}
                 </div>
-                
-                <div className="flex justify-end gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowStudentModal(false)}
-                    className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading || users.length === 0}
-                    className="px-6 py-2 bg-[#6e0718] text-white rounded-lg hover:bg-[#8a0a1f] transition-colors font-semibold disabled:opacity-50"
-                  >
-                    {loading ? 'Saving...' : 'Save Attendance'}
-                  </button>
-                </div>
               </form>
             </div>
+
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-200 flex-shrink-0 bg-white">
+              <button
+                type="button"
+                onClick={() => { setShowStudentModal(false); setNameModalStudent(null); }}
+                className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="mark-attendance-form"
+                disabled={loading || users.length === 0}
+                className="px-6 py-2 bg-[#6e0718] text-white rounded-lg hover:bg-[#8a0a1f] transition-colors font-semibold disabled:opacity-50"
+              >
+                {loading ? 'Saving...' : 'Save Attendance'}
+              </button>
+            </div>
+
+            {/* Name modal - show student name when SI number is clicked */}
+            {nameModalStudent && (
+              <div
+                className="absolute inset-0 bg-black/40 flex items-center justify-center z-[60] rounded-xl"
+                onClick={() => setNameModalStudent(null)}
+              >
+                <div
+                  className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h4 className="text-sm font-medium text-gray-500 mb-1">SI No. {nameModalStudent.siNumber}</h4>
+                  <p className="text-lg font-semibold text-[#6e0718]">{nameModalStudent.fullName}</p>
+                  <button
+                    type="button"
+                    onClick={() => setNameModalStudent(null)}
+                    className="mt-4 w-full px-4 py-2 bg-[#6e0718] text-white rounded-lg hover:bg-[#8a0a1f] transition-colors font-medium"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -1,28 +1,39 @@
-import express from 'express';
+import { Router } from 'express';
 import {
-  createTimetable,
+  generateTimetable,
   getTimetable,
-  deleteTimetableEntry,
+  getAllTimetables,
+  updateTimetableStatus,
+  deleteTimetable,
+  getTeacherTimetable
 } from '../controllers/timetable.controller.js';
-import { authMiddleware } from '../middlewares/auth.middleware.js';
-import { statusMiddleware } from '../middlewares/status.middleware.js';
-import { roleMiddleware } from '../middlewares/role.middleware.js';
+import { verifyJWT } from '../middlewares/auth.middleware.js';
+import { authorizeRoles } from '../middlewares/roleAuth.middleware.js';
 
-const router = express.Router();
+const router = Router();
 
-// All routes require authentication
-router.use(authMiddleware);
-router.use(statusMiddleware);
+// Apply authentication to all routes
+router.use(verifyJWT);
 
-// Create/Update timetable (Teacher, HOD)
-router.post('/', roleMiddleware('teacher', 'hod'), createTimetable);
+// Generate timetable (HOD/Admin only)
+router.post('/generate', authorizeRoles('hod', 'admin'), generateTimetable);
 
-// Get timetable (all roles)
-router.get('/', getTimetable);
+// Get all timetables (HOD/Admin only)
+router.get('/', authorizeRoles('hod', 'admin'), getAllTimetables);
 
-// Delete timetable entry (Teacher, HOD)
-router.delete('/:id', roleMiddleware('teacher', 'hod'), deleteTimetableEntry);
+// Get teacher's personal timetable (MUST come before /:department/:semester)
+router.get('/teacher/my-schedule', authorizeRoles('teacher'), getTeacherTimetable);
+
+// Get specific teacher's timetable (HOD/Admin only)
+router.get('/teacher/:teacherId', authorizeRoles('hod', 'admin'), getTeacherTimetable);
+
+// Get specific timetable by department and semester
+router.get('/:department/:semester', getTimetable);
+
+// Update timetable status (HOD/Admin only)
+router.patch('/:id/status', authorizeRoles('hod', 'admin'), updateTimetableStatus);
+
+// Delete timetable (HOD/Admin only)
+router.delete('/:id', authorizeRoles('hod', 'admin'), deleteTimetable);
 
 export default router;
-
-

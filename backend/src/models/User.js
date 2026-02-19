@@ -31,6 +31,14 @@ const userSchema = new mongoose.Schema(
       required: [true, 'Role is required'],
       enum: ['student', 'teacher', 'hod'],
     },
+    specialization: {
+      type: String,
+      trim: true,
+      // Only required for teachers
+      required: function() {
+        return this.role === 'teacher';
+      }
+    },
     password: {
       type: String,
       required: [true, 'Password is required'],

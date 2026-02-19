@@ -6,10 +6,14 @@ import {
   getAllUsers,
   updateUserStatus,
   getUsersByRole,
+  addTeacher,
+  updateTeacher,
+  deleteTeacher,
 } from '../controllers/user.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { statusMiddleware } from '../middlewares/status.middleware.js';
 import { adminMiddleware } from '../middlewares/admin.middleware.js';
+import { authorizeRoles } from '../middlewares/roleAuth.middleware.js';
 
 const router = express.Router();
 
@@ -28,6 +32,11 @@ router.put('/:id/status', adminMiddleware, updateUserStatus);
 
 // Get users by role (filtered by department for non-admins)
 router.get('/by-role', getUsersByRole);
+
+// Teacher management routes (HOD and Admin)
+router.post('/teacher', authorizeRoles('hod', 'admin'), addTeacher);
+router.put('/teacher/:id', authorizeRoles('hod', 'admin'), updateTeacher);
+router.delete('/teacher/:id', authorizeRoles('hod', 'admin'), deleteTeacher);
 
 export default router;
 

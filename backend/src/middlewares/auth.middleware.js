@@ -85,3 +85,5 @@ export const authMiddleware = async (req, res, next) => {
   }
 };
 
+// Export as verifyJWT for compatibility
+export const verifyJWT = authMiddleware;

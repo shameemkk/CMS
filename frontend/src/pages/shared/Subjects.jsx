@@ -5,19 +5,25 @@ import { useAuth } from '../../context/AuthContext';
 const Subjects = () => {
   const { user } = useAuth();
   const [subjects, setSubjects] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [filters, setFilters] = useState({
     department: '',
     semester: '',
     status: 'active',
   });
   const [showModal, setShowModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
   const [editingSubject, setEditingSubject] = useState(null);
+  const [assigningSubject, setAssigningSubject] = useState(null);
+  const [selectedTeacher, setSelectedTeacher] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     code: '',
     department: user?.department || 'BCA',
     semester: 1,
     credits: 1,
+    hoursPerWeek: 3,
+    subjectType: 'theory',
     description: '',
     status: 'active',
   });
@@ -43,8 +49,18 @@ const Subjects = () => {
     }
   };
 
+  const loadTeachers = async () => {
+    try {
+      const response = await api.users.byRole('teacher');
+      setTeachers(response.users || []);
+    } catch (err) {
+      console.error('Failed to load teachers:', err);
+    }
+  };
+
   useEffect(() => {
     loadSubjects();
+    loadTeachers();
   }, [filters.department, filters.semester, filters.status]);
 
   const handleFilterChange = (e) => {
@@ -94,6 +110,8 @@ const Subjects = () => {
       department: subject.department,
       semester: subject.semester,
       credits: subject.credits,
+      hoursPerWeek: subject.hoursPerWeek || 3,
+      subjectType: subject.subjectType || 'theory',
       description: subject.description || '',
       status: subject.status,
     });
@@ -122,10 +140,35 @@ const Subjects = () => {
       department: user?.department || 'BCA',
       semester: 1,
       credits: 1,
+      hoursPerWeek: 3,
+      subjectType: 'theory',
       description: '',
       status: 'active',
     });
     setShowModal(true);
+  };
+
+  const handleAssignTeacher = (subject) => {
+    setAssigningSubject(subject);
+    setSelectedTeacher(subject.assignedTeacher?._id || subject.assignedTeacher || '');
+    setShowAssignModal(true);
+  };
+
+  const handleSaveAssignment = async () => {
+    try {
+      setLoading(true);
+      await api.subjects.update(assigningSubject._id, {
+        assignedTeacher: selectedTeacher || null
+      });
+      await loadSubjects();
+      setShowAssignModal(false);
+      setAssigningSubject(null);
+      setSelectedTeacher('');
+    } catch (err) {
+      setError(err.message || 'Failed to assign teacher');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -196,6 +239,7 @@ const Subjects = () => {
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Department</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Semester</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Credits</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">Assigned Teacher</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
                 {canManage && <th className="px-4 py-3 text-left font-medium text-gray-600">Actions</th>}
               </tr>
@@ -203,13 +247,13 @@ const Subjects = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={canManage ? 7 : 6} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={canManage ? 8 : 7} className="px-4 py-8 text-center text-gray-500">
                     Loading subjects...
                   </td>
                 </tr>
               ) : subjects.length === 0 ? (
                 <tr>
-                  <td colSpan={canManage ? 7 : 6} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={canManage ? 8 : 7} className="px-4 py-8 text-center text-gray-500">
                     No subjects found.
                   </td>
                 </tr>
@@ -221,6 +265,11 @@ const Subjects = () => {
                     <td className="px-4 py-3 text-gray-600">{subject.department}</td>
                     <td className="px-4 py-3 text-gray-600">{subject.semester}</td>
                     <td className="px-4 py-3 text-gray-600">{subject.credits}</td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {subject.assignedTeacher?.fullName || (
+                        <span className="text-gray-400 italic">Not assigned</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                         subject.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
@@ -231,6 +280,12 @@ const Subjects = () => {
                     {canManage && (
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
+                          <button
+                            onClick={() => handleAssignTeacher(subject)}
+                            className="px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors"
+                          >
+                            Assign
+                          </button>
                           <button
                             onClick={() => handleEdit(subject)}
                             className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
@@ -352,6 +407,40 @@ const Subjects = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Hours Per Week *
+                  </label>
+                  <input
+                    type="number"
+                    name="hoursPerWeek"
+                    value={formData.hoursPerWeek}
+                    onChange={handleFormChange}
+                    required
+                    min="1"
+                    max="10"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Subject Type *
+                  </label>
+                  <select
+                    name="subjectType"
+                    value={formData.subjectType}
+                    onChange={handleFormChange}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
+                  >
+                    <option value="theory">Theory</option>
+                    <option value="lab">Lab</option>
+                    <option value="practical">Practical</option>
+                  </select>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Status
@@ -398,6 +487,75 @@ const Subjects = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Teacher Modal */}
+      {showAssignModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-xl font-bold text-[#6e0718]">
+                Assign Teacher
+              </h3>
+              <button
+                onClick={() => setShowAssignModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Subject
+                </label>
+                <div className="px-4 py-2 bg-gray-50 rounded-lg">
+                  <p className="font-medium text-gray-800">{assigningSubject?.name}</p>
+                  <p className="text-sm text-gray-600">{assigningSubject?.code}</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Teacher
+                </label>
+                <select
+                  value={selectedTeacher}
+                  onChange={(e) => setSelectedTeacher(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
+                >
+                  <option value="">-- No Teacher --</option>
+                  {teachers.map((teacher) => (
+                    <option key={teacher.id} value={teacher.id}>
+                      {teacher.fullName} {teacher.specialization ? `(${teacher.specialization})` : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Select a teacher to assign to this subject, or choose "No Teacher" to unassign.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAssignModal(false)}
+                  className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveAssignment}
+                  disabled={loading}
+                  className="px-6 py-2 bg-[#6e0718] text-white rounded-lg hover:bg-[#8a0a1f] transition-colors font-semibold disabled:opacity-50"
+                >
+                  {loading ? 'Saving...' : 'Assign Teacher'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

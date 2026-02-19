@@ -1,36 +1,75 @@
 import mongoose from 'mongoose';
 
-const timeTableSchema = new mongoose.Schema(
+const timeSlotSchema = new mongoose.Schema({
+  day: {
+    type: String,
+    required: true,
+    enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+  },
+  startTime: {
+    type: String,
+    required: true,
+  },
+  endTime: {
+    type: String,
+    required: true,
+  },
+  subject: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Subject',
+    required: true,
+  },
+  teacher: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  room: {
+    type: String,
+    default: 'TBA',
+  },
+  subjectType: {
+    type: String,
+    enum: ['theory', 'practical', 'lab'],
+    default: 'theory',
+  }
+});
+
+const timetableSchema = new mongoose.Schema(
   {
     department: {
       type: String,
       required: [true, 'Department is required'],
-      enum: ['BCA', 'BCom', 'BA', 'all'],
+      enum: ['BCA', 'BCom', 'BA'],
     },
-    role: {
-      type: String,
-      required: [true, 'Role is required'],
-      enum: ['teacher', 'hod'],
+    semester: {
+      type: Number,
+      required: [true, 'Semester is required'],
+      min: 1,
+      max: 8,
     },
-    day: {
+    academicYear: {
       type: String,
-      required: [true, 'Day is required'],
-      enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+      required: [true, 'Academic year is required'],
+      default: () => {
+        const currentYear = new Date().getFullYear();
+        return `${currentYear}-${currentYear + 1}`;
+      }
     },
-    subject: {
+    timeSlots: [timeSlotSchema],
+    status: {
       type: String,
-      required: [true, 'Subject is required'],
-      trim: true,
-    },
-    timeSlot: {
-      type: String,
-      required: [true, 'Time slot is required'],
-      trim: true,
+      enum: ['draft', 'active', 'archived'],
+      default: 'draft',
     },
     createdBy: {
-      type: mongoose.Schema.Types.Mixed,
-      required: [true, 'Created by is required'],
-      // Can be ObjectId (for HOD) or String 'admin' (for admin)
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    lastModifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
   },
   {
@@ -38,8 +77,9 @@ const timeTableSchema = new mongoose.Schema(
   }
 );
 
-const TimeTable = mongoose.model('TimeTable', timeTableSchema);
+// Compound index to ensure unique timetable per department, semester, and academic year
+timetableSchema.index({ department: 1, semester: 1, academicYear: 1 }, { unique: true });
 
-export default TimeTable;
+const Timetable = mongoose.model('Timetable', timetableSchema);
 
-
+export default Timetable;
