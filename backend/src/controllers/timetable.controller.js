@@ -62,10 +62,10 @@ const generateTimetable = asyncHandler(async (req, res) => {
     // Get existing active timetables for the same semester type (odd/even)
     // Odd semesters: 1, 3, 5, 7 | Even semesters: 2, 4, 6, 8
     const isOddSemester = semester % 2 === 1;
-    const activeSemesters = isOddSemester 
-      ? [1, 3, 5, 7] 
+    const activeSemesters = isOddSemester
+      ? [1, 3, 5, 7]
       : [2, 4, 6, 8];
-    
+
     const existingTimetables = await Timetable.find({
       department,
       semester: { $in: activeSemesters, $ne: semester },
@@ -126,12 +126,12 @@ function generateTimeSlots(subjects, existingTimetables = []) {
         if (slot.teacher && slot.teacher._id) {
           const teacherId = slot.teacher._id.toString();
           const slotKey = `${slot.day}-${slot.startTime}-${slot.endTime}`;
-          
+
           // Initialize teacher schedule if not exists
           if (!teacherSchedule.has(teacherId)) {
             teacherSchedule.set(teacherId, new Set());
           }
-          
+
           // Mark this slot as occupied for this teacher
           teacherSchedule.get(teacherId).add(slotKey);
         }
@@ -143,7 +143,7 @@ function generateTimeSlots(subjects, existingTimetables = []) {
   for (const day of DAYS) {
     for (let slotIndex = 0; slotIndex < TIME_SLOTS.length; slotIndex++) {
       const timeSlot = TIME_SLOTS[slotIndex];
-      
+
       // Find a suitable subject for this slot
       const suitableSubject = findSuitableSubject(
         subjects,
@@ -170,9 +170,9 @@ function generateTimeSlots(subjects, existingTimetables = []) {
         // Update tracking
         const subjectId = suitableSubject._id.toString();
         const teacherId = suitableSubject.assignedTeacher._id.toString();
-        
+
         subjectHoursScheduled.set(subjectId, subjectHoursScheduled.get(subjectId) + 1);
-        
+
         // Mark this specific time slot as occupied
         const slotKey = `${day}-${timeSlot.startTime}-${timeSlot.endTime}`;
         teacherSchedule.get(teacherId).add(slotKey);
@@ -200,7 +200,7 @@ function findSuitableSubject(subjects, subjectHoursScheduled, teacherSchedule, d
     const subjectId = subject._id.toString();
     const teacherId = subject.assignedTeacher._id.toString();
     const hoursScheduled = subjectHoursScheduled.get(subjectId);
-    
+
     // Check if subject still needs more hours
     if (hoursScheduled >= subject.hoursPerWeek) {
       return false;
@@ -232,18 +232,18 @@ function findSuitableSubject(subjects, subjectHoursScheduled, teacherSchedule, d
   availableSubjects.sort((a, b) => {
     const aScheduled = subjectHoursScheduled.get(a._id.toString());
     const bScheduled = subjectHoursScheduled.get(b._id.toString());
-    
+
     if (aScheduled !== bScheduled) {
       return aScheduled - bScheduled;
     }
-    
+
     // If same scheduled hours, prioritize subjects with more total hours needed
     return b.hoursPerWeek - a.hoursPerWeek;
   });
 
   // Get subjects with the same priority (same number of scheduled hours)
   const minScheduled = subjectHoursScheduled.get(availableSubjects[0]._id.toString());
-  const samePrioritySubjects = availableSubjects.filter(subject => 
+  const samePrioritySubjects = availableSubjects.filter(subject =>
     subjectHoursScheduled.get(subject._id.toString()) === minScheduled
   );
 
@@ -263,10 +263,10 @@ function generateRoomNumber(subjectType) {
     'lab': 'L',
     'practical': 'P'
   };
-  
+
   const prefix = roomPrefixes[subjectType] || 'R';
   const roomNumber = Math.floor(Math.random() * 20) + 101; // Random room between 101-120
-  
+
   return `${prefix}-${roomNumber}`;
 }
 
@@ -295,9 +295,9 @@ const getTimetable = asyncHandler(async (req, res) => {
 // Get all timetables
 const getAllTimetables = asyncHandler(async (req, res) => {
   const { department, status } = req.query;
-  
+
   const filter = {};
-  
+
   // HODs can only view timetables for their own department
   if (req.user.role === 'hod') {
     filter.department = req.user.department;
@@ -305,7 +305,7 @@ const getAllTimetables = asyncHandler(async (req, res) => {
     // Admins can filter by department
     filter.department = department;
   }
-  
+
   if (status) filter.status = status;
 
   const timetables = await Timetable.find(filter)
@@ -376,6 +376,104 @@ const deleteTimetable = asyncHandler(async (req, res) => {
   );
 });
 
+// Update timetable
+const updateTimetable = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { timeSlots } = req.body;
+
+  if (!timeSlots || !Array.isArray(timeSlots)) {
+    throw new ApiError(400, 'Time slots array is required');
+  }
+
+  const timetable = await Timetable.findById(id);
+  if (!timetable) {
+    throw new ApiError(404, 'Timetable not found');
+  }
+
+  // HODs can only update timetables for their own department
+  if (req.user.role === 'hod' && req.user.department !== timetable.department) {
+    throw new ApiError(403, 'You can only edit timetables for your own department');
+  }
+
+  // Same parity semester check (e.g., odd with odd, even with even)
+  const isOddSemester = timetable.semester % 2 === 1;
+  const activeSemesters = isOddSemester
+    ? [1, 3, 5, 7]
+    : [2, 4, 6, 8];
+
+  const existingTimetables = await Timetable.find({
+    semester: { $in: activeSemesters, $ne: timetable.semester },
+    status: { $in: ['active', 'draft'] },
+  }).populate('timeSlots.teacher');
+
+  const teacherSchedule = new Map();
+  existingTimetables.forEach(tt => {
+    tt.timeSlots.forEach(slot => {
+      if (slot.teacher && slot.teacher._id) {
+        const teacherId = slot.teacher._id.toString();
+        const slotKey = `${slot.day}-${slot.startTime}-${slot.endTime}`;
+        if (!teacherSchedule.has(teacherId)) {
+          teacherSchedule.set(teacherId, new Set());
+        }
+        teacherSchedule.get(teacherId).add(slotKey);
+      }
+    });
+  });
+
+  const currentSubmissionSchedule = new Map();
+  for (const slot of timeSlots) {
+    if (!slot.subject) {
+      throw new ApiError(400, `Subject is missing for a slot on ${slot.day} at ${slot.startTime}.`);
+    }
+    if (!slot.teacher) {
+      throw new ApiError(400, `Teacher is missing for a slot on ${slot.day} at ${slot.startTime}.`);
+    }
+
+    const teacherId = slot.teacher._id ? slot.teacher._id.toString() : slot.teacher;
+    const slotKey = `${slot.day}-${slot.startTime}-${slot.endTime}`;
+
+    // Conflict with other timetables in the same semester parity
+    if (teacherSchedule.has(teacherId) && teacherSchedule.get(teacherId).has(slotKey)) {
+      throw new ApiError(400, `Teacher conflict: The selected teacher is already scheduled for ${slot.day} at ${slot.startTime}-${slot.endTime} in another semester.`);
+    }
+
+    // Conflict within the current edited timetable
+    if (!currentSubmissionSchedule.has(teacherId)) {
+      currentSubmissionSchedule.set(teacherId, new Set());
+    }
+    if (currentSubmissionSchedule.get(teacherId).has(slotKey)) {
+      throw new ApiError(400, `Teacher conflict: Teacher is scheduled more than once on ${slot.day} at ${slot.startTime}-${slot.endTime} in this timetable.`);
+    }
+    currentSubmissionSchedule.get(teacherId).add(slotKey);
+  }
+
+  // Process the slots
+  const processedSlots = timeSlots.map(slot => ({
+    day: slot.day,
+    startTime: slot.startTime,
+    endTime: slot.endTime,
+    subject: slot.subject._id ? slot.subject._id : slot.subject,
+    teacher: slot.teacher._id ? slot.teacher._id : slot.teacher,
+    room: slot.room,
+    subjectType: slot.subjectType || 'theory'
+  }));
+
+  timetable.timeSlots = processedSlots;
+  timetable.lastModifiedBy = req.user._id;
+
+  await timetable.save();
+
+  const updatedTimetable = await Timetable.findById(id)
+    .populate('timeSlots.subject')
+    .populate('timeSlots.teacher', 'fullName email')
+    .populate('createdBy', 'fullName email')
+    .populate('lastModifiedBy', 'fullName email');
+
+  res.status(200).json(
+    new ApiResponse(200, updatedTimetable, 'Timetable updated successfully')
+  );
+});
+
 // Get teacher's timetable
 const getTeacherTimetable = asyncHandler(async (req, res) => {
   const teacherId = req.user.role === 'teacher' ? req.user._id : req.params.teacherId;
@@ -389,12 +487,12 @@ const getTeacherTimetable = asyncHandler(async (req, res) => {
 
   // Filter and format the response to show only teacher's slots
   const teacherSchedule = [];
-  
+
   timetables.forEach(timetable => {
     const teacherSlots = timetable.timeSlots.filter(
       slot => slot.teacher._id.toString() === teacherId.toString()
     );
-    
+
     if (teacherSlots.length > 0) {
       teacherSchedule.push({
         department: timetable.department,
@@ -415,5 +513,6 @@ export {
   getAllTimetables,
   updateTimetableStatus,
   deleteTimetable,
-  getTeacherTimetable
+  getTeacherTimetable,
+  updateTimetable
 };

@@ -5,7 +5,8 @@ import {
   getAllTimetables,
   updateTimetableStatus,
   deleteTimetable,
-  getTeacherTimetable
+  getTeacherTimetable,
+  updateTimetable
 } from '../controllers/timetable.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { authorizeRoles } from '../middlewares/roleAuth.middleware.js';
@@ -32,6 +33,9 @@ router.get('/:department/:semester', getTimetable);
 
 // Update timetable status (HOD/Admin only)
 router.patch('/:id/status', authorizeRoles('hod', 'admin'), updateTimetableStatus);
+
+// Update timetable (HOD/Admin only)
+router.put('/:id', authorizeRoles('hod', 'admin'), updateTimetable);
 
 // Delete timetable (HOD/Admin only)
 router.delete('/:id', authorizeRoles('hod', 'admin'), deleteTimetable);

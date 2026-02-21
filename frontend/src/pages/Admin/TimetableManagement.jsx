@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { 
-  Calendar, 
-  BookOpen, 
-  Plus, 
-  Eye, 
-  Edit, 
+import {
+  Calendar,
+  BookOpen,
+  Plus,
+  Eye,
+  Edit,
   Trash2,
   CheckCircle,
-  Archive
+  Archive,
+  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { api } from '../../services/api';
@@ -19,8 +20,15 @@ const TimetableManagement = () => {
   const [selectedTimetable, setSelectedTimetable] = useState(null);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editForm, setEditForm] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [teachers, setTeachers] = useState([]);
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const { user } = useAuth();
-  
+
   const [generateForm, setGenerateForm] = useState({
     department: user?.department || 'BCA',
     semester: 1
@@ -39,12 +47,12 @@ const TimetableManagement = () => {
   const getAvailableSemesters = () => {
     const allSemesters = [1, 2, 3, 4, 5, 6, 7, 8];
     const department = user?.role === 'hod' ? user.department : generateForm.department;
-    
+
     // Get semesters that already have timetables for the selected department
     const existingSemesters = timetables
       .filter(tt => tt.department === department && ['active', 'draft'].includes(tt.status))
       .map(tt => tt.semester);
-    
+
     // Return semesters that don't have timetables yet
     return allSemesters.filter(sem => !existingSemesters.includes(sem));
   };
@@ -71,7 +79,7 @@ const TimetableManagement = () => {
     try {
       setLoading(true);
       const data = await api.timetable.list();
-      setTimetables(data.data);
+      setTimetables(data.data.filter(t => t.status !== 'archived'));
     } catch (error) {
       toast.error('Failed to fetch timetables');
     } finally {
@@ -165,12 +173,58 @@ const TimetableManagement = () => {
       if (response.ok) {
         const data = await response.json();
         setSelectedTimetable(data.data);
+        setEditForm(JSON.parse(JSON.stringify(data.data.timeSlots || [])));
         setShowViewModal(true);
+        setIsEditMode(false);
+
+        try {
+          // Attempt to load subjects and teachers for editing
+          const subjRes = await api.subjects.list({ department, semester });
+          if (subjRes.subjects) setSubjects(subjRes.subjects);
+          else if (subjRes.data) setSubjects(subjRes.data);
+
+          const teachRes = await api.users.byRole('teacher');
+          if (teachRes.users) setTeachers(teachRes.users);
+          else if (teachRes.data) setTeachers(teachRes.data);
+        } catch (err) {
+          console.error("Could not load edit requirements:", err);
+        }
       } else {
         toast.error('Failed to fetch timetable details');
       }
     } catch (error) {
       toast.error('Failed to fetch timetable details');
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      setSavingEdit(true);
+      const response = await fetch(`/api/timetable/${selectedTimetable._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${api.token.get()}`
+        },
+        body: JSON.stringify({ timeSlots: editForm })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success('Timetable updated successfully!');
+        setSelectedTimetable(data.data);
+        setEditForm(JSON.parse(JSON.stringify(data.data.timeSlots || [])));
+        setIsEditMode(false);
+        fetchTimetables();
+      } else {
+        const error = await response.json();
+        // Display backend error on failure, don't clear the form
+        toast.error(error.message || 'Failed to update timetable', { duration: 6000 });
+      }
+    } catch (error) {
+      toast.error(error?.message || 'Failed to update timetable', { duration: 6000 });
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -195,6 +249,8 @@ const TimetableManagement = () => {
   const renderTimetableGrid = (timetable) => {
     if (!timetable || !timetable.timeSlots) return null;
 
+    const slotsArray = isEditMode ? editForm : timetable.timeSlots;
+
     // Create a grid structure
     const grid = {};
     DAYS.forEach(day => {
@@ -205,12 +261,115 @@ const TimetableManagement = () => {
     });
 
     // Fill the grid with time slots
-    timetable.timeSlots.forEach(slot => {
+    slotsArray.forEach(slot => {
       const timeKey = `${slot.startTime}-${slot.endTime}`;
       if (grid[slot.day] && grid[slot.day].hasOwnProperty(timeKey)) {
         grid[slot.day][timeKey] = slot;
       }
     });
+
+    const getConflictMessage = (teacherId, day, timeSlotStr) => {
+      if (!teacherId || !isEditMode || !selectedTimetable) return null;
+      const [startTime, endTime] = timeSlotStr.split('-');
+
+      // Check conflicts within the same editForm
+      const currentCount = editForm.filter(s => {
+        const tId = s.teacher?._id || s.teacher;
+        return String(tId) === String(teacherId) && s.day === day && s.startTime === startTime && s.endTime === endTime;
+      }).length;
+
+      if (currentCount > 1) {
+        return "Teacher assigned multiple times in this slot";
+      }
+
+      // Check conflicts in other parity matching timetables
+      const isOdd = selectedTimetable.semester % 2 === 1;
+      const sameParitySems = isOdd ? [1, 3, 5, 7] : [2, 4, 6, 8];
+
+      for (const tt of timetables) {
+        if (
+          tt._id !== selectedTimetable._id &&
+          tt.department === selectedTimetable.department &&
+          sameParitySems.includes(tt.semester) &&
+          ['active', 'draft'].includes(tt.status)
+        ) {
+          if (tt.timeSlots) {
+            const conflict = tt.timeSlots.find(s => {
+              const tId = s.teacher?._id || s.teacher;
+              return String(tId) === String(teacherId) && s.day === day && s.startTime === startTime && s.endTime === endTime;
+            });
+            if (conflict) {
+              return `Conflict: Teacher in Sem ${tt.semester} this slot`;
+            }
+          }
+        }
+      }
+      return null;
+    };
+
+    const handleCellChange = (day, timeSlotStr, field, value) => {
+      const [startTime, endTime] = timeSlotStr.split('-');
+      let newSlots = [...editForm];
+      let existingSlotIndex = newSlots.findIndex(s => s.day === day && s.startTime === startTime && s.endTime === endTime);
+
+      if (existingSlotIndex >= 0) {
+        if (value === "") {
+          if (field === 'subject') {
+            newSlots.splice(existingSlotIndex, 1);
+          } else {
+            newSlots[existingSlotIndex][field] = null;
+          }
+        } else {
+          newSlots[existingSlotIndex][field] = value;
+          if (field === 'subject') {
+            const subj = subjects.find(s => s._id === value);
+            if (subj && subj.assignedTeacher) {
+              newSlots[existingSlotIndex].teacher = subj.assignedTeacher.id || subj.assignedTeacher._id || subj.assignedTeacher;
+              newSlots[existingSlotIndex].subjectType = subj.subjectType;
+            }
+          } else if (field === 'teacher') {
+            const subj = subjects.find(s => s.assignedTeacher && (s.assignedTeacher.id === value || s.assignedTeacher._id === value || s.assignedTeacher === value));
+            if (subj) {
+              newSlots[existingSlotIndex].subject = subj._id;
+              newSlots[existingSlotIndex].subjectType = subj.subjectType;
+            }
+          }
+        }
+      } else {
+        if (value === "") return;
+
+        let relatedSubject = null;
+        let relatedTeacher = null;
+        let subjectType = 'theory';
+
+        if (field === 'subject') {
+          relatedSubject = value;
+          const subj = subjects.find(s => s._id === value);
+          if (subj && subj.assignedTeacher) {
+            relatedTeacher = subj.assignedTeacher.id || subj.assignedTeacher._id || subj.assignedTeacher;
+            subjectType = subj.subjectType;
+          }
+        } else if (field === 'teacher') {
+          relatedTeacher = value;
+          const subj = subjects.find(s => s.assignedTeacher && (s.assignedTeacher.id === value || s.assignedTeacher._id === value || s.assignedTeacher === value));
+          if (subj) {
+            relatedSubject = subj._id;
+            subjectType = subj.subjectType;
+          }
+        }
+
+        newSlots.push({
+          day,
+          startTime,
+          endTime,
+          subject: relatedSubject,
+          teacher: relatedTeacher,
+          room: 'TBA',
+          subjectType
+        });
+      }
+      setEditForm(newSlots);
+    };
 
     return (
       <div className="overflow-x-auto">
@@ -235,22 +394,53 @@ const TimetableManagement = () => {
                 </td>
                 {DAYS.map(day => {
                   const slot = grid[day][timeSlot];
+                  const teacherId = slot?.teacher?._id || slot?.teacher || null;
+                  const conflictMsg = isEditMode ? getConflictMessage(teacherId, day, timeSlot) : null;
+
                   return (
                     <td key={`${day}-${timeSlot}`} className="border border-gray-300 px-2 py-2">
-                      {slot ? (
-                        <div className={`p-2 rounded text-xs ${
-                          slot.subjectType === 'lab' ? 'bg-blue-100 text-blue-800' :
-                          slot.subjectType === 'practical' ? 'bg-green-100 text-green-800' :
-                          'bg-purple-100 text-purple-800'
-                        }`}>
-                          <div className="font-medium">{slot.subject?.name}</div>
-                          <div className="text-xs mt-1">{slot.teacher?.fullName}</div>
-                          <div className="text-xs">{slot.room}</div>
+                      {isEditMode ? (
+                        <div className={`flex flex-col gap-1 min-w-[120px] ${conflictMsg ? 'bg-red-50 p-1 border border-red-200 rounded' : ''}`}>
+                          <select
+                            className={`text-xs p-1 border rounded w-full ${conflictMsg ? 'border-red-300' : ''}`}
+                            value={slot?.subject?._id || slot?.subject || ""}
+                            onChange={(e) => handleCellChange(day, timeSlot, 'subject', e.target.value)}
+                          >
+                            <option value="">Free</option>
+                            {subjects.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+                          </select>
+                          {(slot?.subject || slot?.subject?._id) && (
+                            <select
+                              className={`text-xs p-1 border rounded w-full ${conflictMsg ? 'border-red-300' : ''}`}
+                              value={slot?.teacher?._id || slot?.teacher || ""}
+                              onChange={(e) => handleCellChange(day, timeSlot, 'teacher', e.target.value)}
+                            >
+                              <option value="">Select Teacher</option>
+                              {teachers.filter(t => subjects.some(s => s.assignedTeacher && (s.assignedTeacher.id === (t.id || t._id) || s.assignedTeacher._id === (t.id || t._id) || s.assignedTeacher === (t.id || t._id)))).map(t => <option key={t.id || t._id} value={t.id || t._id}>{t.fullName}</option>)}
+                            </select>
+                          )}
+                          {conflictMsg && (
+                            <div className="text-[10px] text-red-600 flex items-start gap-1 mt-1 leading-tight">
+                              <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                              <span>{conflictMsg}</span>
+                            </div>
+                          )}
                         </div>
                       ) : (
-                        <div className="h-16 flex items-center justify-center text-gray-400">
-                          Free
-                        </div>
+                        slot ? (
+                          <div className={`p-2 rounded text-xs ${slot.subjectType === 'lab' ? 'bg-blue-100 text-blue-800' :
+                            slot.subjectType === 'practical' ? 'bg-green-100 text-green-800' :
+                              'bg-purple-100 text-purple-800'
+                            }`}>
+                            <div className="font-medium">{slot.subject?.name || subjects.find(s => s._id === slot.subject)?.name || 'Unknown'}</div>
+                            <div className="text-xs mt-1">{slot.teacher?.fullName || teachers.find(t => (t.id || t._id) === slot.teacher)?.fullName || 'Unknown'}</div>
+                            <div className="text-xs">{slot.room}</div>
+                          </div>
+                        ) : (
+                          <div className="h-16 flex items-center justify-center text-gray-400">
+                            Free
+                          </div>
+                        )
                       )}
                     </td>
                   );
@@ -284,7 +474,7 @@ const TimetableManagement = () => {
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-medium text-gray-900">All Timetables</h2>
         </div>
-        
+
         {loading ? (
           <div className="p-6 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
@@ -351,7 +541,7 @@ const TimetableManagement = () => {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        
+
                         {timetable.status === 'draft' && (
                           <button
                             onClick={() => handleStatusUpdate(timetable._id, 'active')}
@@ -361,17 +551,7 @@ const TimetableManagement = () => {
                             <CheckCircle className="w-4 h-4" />
                           </button>
                         )}
-                        
-                        {timetable.status === 'active' && (
-                          <button
-                            onClick={() => handleStatusUpdate(timetable._id, 'archived')}
-                            className="text-yellow-600 hover:text-yellow-900"
-                            title="Archive Timetable"
-                          >
-                            <Archive className="w-4 h-4" />
-                          </button>
-                        )}
-                        
+
                         <button
                           onClick={() => handleDeleteTimetable(timetable._id)}
                           className="text-red-600 hover:text-red-900"
@@ -394,7 +574,7 @@ const TimetableManagement = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Generate New Timetable</h3>
-            
+
             {getAvailableSemesters().length === 0 ? (
               <div className="mb-6">
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -428,7 +608,7 @@ const TimetableManagement = () => {
                   ) : (
                     <select
                       value={generateForm.department}
-                      onChange={(e) => setGenerateForm({...generateForm, department: e.target.value})}
+                      onChange={(e) => setGenerateForm({ ...generateForm, department: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     >
@@ -445,7 +625,7 @@ const TimetableManagement = () => {
                   </label>
                   <select
                     value={generateForm.semester}
-                    onChange={(e) => setGenerateForm({...generateForm, semester: parseInt(e.target.value)})}
+                    onChange={(e) => setGenerateForm({ ...generateForm, semester: parseInt(e.target.value) })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   >
@@ -485,16 +665,45 @@ const TimetableManagement = () => {
               <h3 className="text-lg font-medium text-gray-900">
                 {selectedTimetable.department} - Semester {selectedTimetable.semester} Timetable
               </h3>
-              <button
-                onClick={() => setShowViewModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-3">
+                {isEditMode ? (
+                  <>
+                    <button
+                      onClick={handleSaveEdit}
+                      disabled={savingEdit}
+                      className="text-sm bg-green-600 text-white px-3 py-1.5 rounded-md hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {savingEdit ? 'Saving...' : 'Save Changes'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsEditMode(false);
+                        setEditForm(JSON.parse(JSON.stringify(selectedTimetable.timeSlots || [])));
+                      }}
+                      className="text-sm bg-gray-500 text-white px-3 py-1.5 rounded-md hover:bg-gray-600"
+                    >
+                      Cancel Edit
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setIsEditMode(true)}
+                    className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 flex items-center gap-1"
+                  >
+                    <Edit className="w-4 h-4" /> Edit Timetable
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowViewModal(false)}
+                  className="text-gray-400 hover:text-gray-600 ml-4"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
-            
+
             {renderTimetableGrid(selectedTimetable)}
-            
+
             <div className="mt-4 flex justify-end">
               <button
                 onClick={() => setShowViewModal(false)}
