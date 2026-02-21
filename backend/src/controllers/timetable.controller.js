@@ -309,6 +309,8 @@ const getAllTimetables = asyncHandler(async (req, res) => {
   if (status) filter.status = status;
 
   const timetables = await Timetable.find(filter)
+    .populate('timeSlots.subject')
+    .populate('timeSlots.teacher', 'fullName email')
     .populate('createdBy', 'fullName email')
     .sort({ department: 1, semester: 1 });
 

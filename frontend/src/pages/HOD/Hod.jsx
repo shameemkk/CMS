@@ -7,7 +7,7 @@ import Exam from './Exam';
 import Timetable from './Timetable';
 import Teachers from './Teachers';
 import Students from './Students';
-import MarkAttendance from '../Teacher/MarkAttendance';
+import MarkAttendance from './MarkAttendance';
 import Assignments from './Assignments';
 import Notifications from './Notifications';
 import LeaveRequests from './LeaveRequests';
@@ -29,7 +29,7 @@ const Hod = () => {
     { id: 'timetable', label: 'Time Table', icon: '📅' },
     { id: 'teachers', label: 'Teachers', icon: '👨‍🏫' },
     { id: 'students', label: 'Students', icon: '👨‍🎓' },
-    { id: 'attendance', label: 'Attendance', icon: '✅' },
+    { id: 'mark-attendance', label: 'Mark Attendance', icon: '✏️' },
     { id: 'assignments', label: 'Assignments', icon: '📚' },
     { id: 'results', label: 'Results', icon: '📊' },
     { id: 'notifications', label: 'Notifications', icon: '🔔' },
@@ -57,8 +57,8 @@ const Hod = () => {
         return <Teachers />;
       case 'students':
         return <Students />;
-      case 'attendance':
-        return <Attendance />;
+      case 'mark-attendance':
+        return <MarkAttendance />;
       case 'assignments':
         return <Assignments />;
       case 'results':
