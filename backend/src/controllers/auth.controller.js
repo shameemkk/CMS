@@ -54,13 +54,21 @@ export const adminLogin = asyncHandler(async (req, res) => {
  * @access  Public
  */
 export const register = asyncHandler(async (req, res) => {
-  const { fullName, email, phone, department, role, password, confirmPassword } = req.body;
+  const { fullName, email, phone, department, role, password, confirmPassword, semester } = req.body;
 
   // Validation
   if (!fullName || !email || !phone || !department || !role || !password || !confirmPassword) {
     return res.status(400).json({
       success: false,
       message: 'All fields are required',
+    });
+  }
+
+  // Validate semester for students
+  if (role.toLowerCase() === 'student' && !semester) {
+    return res.status(400).json({
+      success: false,
+      message: 'Semester is required for students',
     });
   }
 
@@ -88,8 +96,8 @@ export const register = asyncHandler(async (req, res) => {
     });
   }
 
-  // Create user with pending status
-  const user = await User.create({
+  // Create user data
+  const userData = {
     fullName,
     email: email.toLowerCase(),
     phone,
@@ -97,20 +105,35 @@ export const register = asyncHandler(async (req, res) => {
     role: role.toLowerCase(),
     password,
     status: 'pending',
-  });
+  };
+
+  // Add semester only for students
+  if (role.toLowerCase() === 'student') {
+    userData.semester = parseInt(semester);
+  }
+
+  // Create user with pending status
+  const user = await User.create(userData);
+
+  const responseUser = {
+    id: user._id,
+    fullName: user.fullName,
+    email: user.email,
+    phone: user.phone,
+    department: user.department,
+    role: user.role,
+    status: user.status,
+  };
+
+  // Include semester in response for students
+  if (user.role === 'student') {
+    responseUser.semester = user.semester;
+  }
 
   res.status(201).json({
     success: true,
     message: 'Registration successful. Please wait for admin approval.',
-    user: {
-      id: user._id,
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone,
-      department: user.department,
-      role: user.role,
-      status: user.status,
-    },
+    user: responseUser,
   });
 });
 
@@ -166,19 +189,26 @@ export const login = asyncHandler(async (req, res) => {
     status: user.status,
   });
 
+  const userResponse = {
+    id: user._id,
+    fullName: user.fullName,
+    email: user.email,
+    phone: user.phone,
+    department: user.department,
+    role: user.role,
+    status: user.status,
+  };
+
+  // Include semester for students
+  if (user.role === 'student') {
+    userResponse.semester = user.semester;
+  }
+
   res.status(200).json({
     success: true,
     message: 'Login successful',
     token,
-    user: {
-      id: user._id,
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone,
-      department: user.department,
-      role: user.role,
-      status: user.status,
-    },
+    user: userResponse,
   });
 });
 
@@ -256,18 +286,25 @@ export const getMe = asyncHandler(async (req, res) => {
     });
   }
 
+  const userResponse = {
+    id: user._id,
+    fullName: user.fullName,
+    email: user.email,
+    phone: user.phone,
+    department: user.department,
+    role: user.role,
+    status: user.status,
+    createdAt: user.createdAt,
+  };
+
+  // Include semester for students
+  if (user.role === 'student') {
+    userResponse.semester = user.semester;
+  }
+
   res.status(200).json({
     success: true,
-    user: {
-      id: user._id,
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone,
-      department: user.department,
-      role: user.role,
-      status: user.status,
-      createdAt: user.createdAt,
-    },
+    user: userResponse,
   });
 });
 

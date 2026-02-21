@@ -26,6 +26,15 @@ const userSchema = new mongoose.Schema(
       required: [true, 'Department is required'],
       enum: ['BCA', 'BCom', 'BA'],
     },
+    semester: {
+      type: Number,
+      min: 1,
+      max: 8,
+      // Only required for students
+      required: function() {
+        return this.role === 'student';
+      }
+    },
     role: {
       type: String,
       required: [true, 'Role is required'],
@@ -47,7 +56,7 @@ const userSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'],
+      enum: ['pending', 'approved', 'rejected', 'passout'],
       default: 'pending',
     },
   },

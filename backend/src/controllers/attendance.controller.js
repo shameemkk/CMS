@@ -2,14 +2,6 @@ import Attendance from '../models/Attendance.js';
 import User from '../models/User.js';
 import { asyncHandler } from '../utils/errorHandler.js';
 
-const VALID_TIME_SLOTS = [
-  '9:00 AM - 10:00 AM',
-  '10:00 AM - 11:00 AM',
-  '11:00 AM - 12:00 PM',
-  '1:30 PM - 2:45 PM',
-  '2:45 PM - 4:00 PM',
-];
-
 // Normalize date to UTC midnight for consistent create/find (avoids timezone mismatch)
 const toAttendanceDate = (date) => {
   const str = typeof date === 'string' ? date.split('T')[0] : new Date(date).toISOString().split('T')[0];
@@ -28,13 +20,6 @@ export const markAttendance = asyncHandler(async (req, res) => {
     return res.status(400).json({
       success: false,
       message: 'User ID, date, timeSlot, and status are required',
-    });
-  }
-
-  if (!VALID_TIME_SLOTS.includes(timeSlot)) {
-    return res.status(400).json({
-      success: false,
-      message: 'Invalid time slot',
     });
   }
 
@@ -149,13 +134,6 @@ export const markAttendanceBulk = asyncHandler(async (req, res) => {
     });
   }
 
-  if (!VALID_TIME_SLOTS.includes(timeSlot)) {
-    return res.status(400).json({
-      success: false,
-      message: 'Invalid time slot',
-    });
-  }
-
   const attendanceDate = toAttendanceDate(date);
 
   const markedByValue = req.userRole === 'admin' ? 'admin' : req.userId;
@@ -261,11 +239,8 @@ export const getAttendance = asyncHandler(async (req, res) => {
   }
 
   // Filter by time slot
-  if (timeSlot && VALID_TIME_SLOTS.includes(timeSlot)) {
+  if (timeSlot) {
     query.timeSlot = timeSlot;
-  } else {
-    // Only return slot-based records (exclude legacy records without timeSlot)
-    query.timeSlot = { $in: VALID_TIME_SLOTS };
   }
 
   const attendance = await Attendance.find(query)
@@ -322,9 +297,6 @@ export const getAttendanceStats = asyncHandler(async (req, res) => {
     const attendanceDate = toAttendanceDate(date);
     query.date = attendanceDate;
   }
-  
-  // Only count slot-based records (one per slot per day)
-  query.timeSlot = { $in: VALID_TIME_SLOTS };
 
   const attendance = await Attendance.find(query);
 

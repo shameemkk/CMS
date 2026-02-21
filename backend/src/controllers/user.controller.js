@@ -16,18 +16,25 @@ export const getProfile = asyncHandler(async (req, res) => {
     });
   }
 
+  const userResponse = {
+    id: user._id,
+    fullName: user.fullName,
+    email: user.email,
+    phone: user.phone,
+    department: user.department,
+    role: user.role,
+    status: user.status,
+    createdAt: user.createdAt,
+  };
+
+  // Include semester for students
+  if (user.role === 'student') {
+    userResponse.semester = user.semester;
+  }
+
   res.status(200).json({
     success: true,
-    user: {
-      id: user._id,
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone,
-      department: user.department,
-      role: user.role,
-      status: user.status,
-      createdAt: user.createdAt,
-    },
+    user: userResponse,
   });
 });
 
@@ -56,18 +63,25 @@ export const updateProfile = asyncHandler(async (req, res) => {
     });
   }
 
+  const userResponse = {
+    id: user._id,
+    fullName: user.fullName,
+    email: user.email,
+    phone: user.phone,
+    department: user.department,
+    role: user.role,
+    status: user.status,
+  };
+
+  // Include semester for students
+  if (user.role === 'student') {
+    userResponse.semester = user.semester;
+  }
+
   res.status(200).json({
     success: true,
     message: 'Profile updated successfully',
-    user: {
-      id: user._id,
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone,
-      department: user.department,
-      role: user.role,
-      status: user.status,
-    },
+    user: userResponse,
   });
 });
 
@@ -208,6 +222,7 @@ export const getUsersByRole = asyncHandler(async (req, res) => {
       email: user.email,
       phone: user.phone,
       department: user.department,
+      semester: user.semester,
       role: user.role,
     })),
   });
@@ -370,6 +385,59 @@ export const deleteTeacher = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Teacher deleted successfully',
+  });
+});
+
+/**
+ * @desc    Promote all students to next semester (HOD/Admin only)
+ * @route   POST /api/users/promote-students
+ * @access  Private/HOD/Admin
+ */
+export const promoteStudents = asyncHandler(async (req, res) => {
+  // Determine department filter
+  const departmentFilter = req.userRole === 'admin' 
+    ? {} 
+    : { department: req.userDepartment };
+
+  // Find all approved students in the department
+  const students = await User.find({
+    role: 'student',
+    status: 'approved',
+    ...departmentFilter,
+  });
+
+  if (students.length === 0) {
+    return res.status(404).json({
+      success: false,
+      message: 'No students found to promote',
+    });
+  }
+
+  let promotedCount = 0;
+  let passoutCount = 0;
+
+  // Promote each student
+  for (const student of students) {
+    if (student.semester >= 8) {
+      // Mark as passout if semester 8 or higher
+      student.status = 'passout';
+      passoutCount++;
+    } else {
+      // Promote to next semester
+      student.semester = student.semester + 1;
+      promotedCount++;
+    }
+    await student.save();
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `Successfully promoted ${promotedCount} student(s) and marked ${passoutCount} student(s) as passout`,
+    stats: {
+      total: students.length,
+      promoted: promotedCount,
+      passout: passoutCount,
+    },
   });
 });
 

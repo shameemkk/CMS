@@ -118,7 +118,7 @@ const Login = () => {
             </button>
           </div>
 
-          <div className="text-center">
+          <div className="text-center space-y-3">
             <p className="text-sm text-gray-600">
               Don't have an account?{' '}
               <Link
@@ -126,6 +126,15 @@ const Login = () => {
                 className="font-medium text-[#6e0718] hover:text-[#8a0a1f] transition-colors"
               >
                 Sign up here
+              </Link>
+            </p>
+            
+            <p className="text-sm text-gray-600">
+              <Link
+                to="/admin/login"
+                className="font-medium text-[#6e0718] hover:text-[#8a0a1f] transition-colors"
+              >
+                Admin Login →
               </Link>
             </p>
           </div>

@@ -13,6 +13,7 @@ const MarkAttendance = () => {
   const [students, setStudents] = useState([]);
   const [statusMap, setStatusMap] = useState({});
   const [saving, setSaving] = useState(false);
+  const [loadingStudents, setLoadingStudents] = useState(false);
   const { user } = useAuth();
 
   const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -68,9 +69,12 @@ const MarkAttendance = () => {
   const handleSlotClick = async (slot) => {
     setSelectedSlot(slot);
     setShowAttendanceModal(true);
+    setLoadingStudents(true);
+    setStudents([]);
+    setStatusMap({});
     
-    // Fetch students for this department and semester
     try {
+      // Fetch students for this department and semester
       const response = await api.users.byRole('student');
       const filteredStudents = response.users?.filter(
         student => student.department === slot.department && student.semester === slot.semester
@@ -87,13 +91,27 @@ const MarkAttendance = () => {
       
       const existing = attendanceResponse.attendance || [];
       const map = {};
+      
+      // Initialize status map with existing attendance or default to 'present'
       filteredStudents.forEach((student) => {
-        const rec = existing.find((r) => (r.userId?._id || r.userId)?.toString() === student.id?.toString());
-        map[student.id] = rec && ['present', 'late', 'absent'].includes(rec.status) ? rec.status : 'present';
+        const existingRecord = existing.find((r) => {
+          const recordUserId = r.userId?._id || r.userId;
+          return recordUserId?.toString() === student.id?.toString();
+        });
+        
+        if (existingRecord && ['present', 'late', 'absent'].includes(existingRecord.status)) {
+          map[student.id] = existingRecord.status;
+        } else {
+          map[student.id] = 'present';
+        }
       });
+      
       setStatusMap(map);
     } catch (error) {
+      console.error('Error loading students:', error);
       toast.error('Failed to load students');
+    } finally {
+      setLoadingStudents(false);
     }
   };
 
@@ -275,95 +293,105 @@ const MarkAttendance = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-              <div className="flex gap-2 mb-4">
-                <button
-                  onClick={() => handleMarkAll('present')}
-                  className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 font-medium text-sm flex items-center gap-2"
-                >
-                  <Check className="w-4 h-4" />
-                  Mark All Present
-                </button>
-                <button
-                  onClick={() => handleMarkAll('absent')}
-                  className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium text-sm flex items-center gap-2"
-                >
-                  <X className="w-4 h-4" />
-                  Mark All Absent
-                </button>
-              </div>
+              {loadingStudents ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                  <p className="text-gray-600">Loading students and attendance data...</p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex gap-2 mb-4">
+                    <button
+                      onClick={() => handleMarkAll('present')}
+                      className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 font-medium text-sm flex items-center gap-2"
+                    >
+                      <Check className="w-4 h-4" />
+                      Mark All Present
+                    </button>
+                    <button
+                      onClick={() => handleMarkAll('absent')}
+                      className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium text-sm flex items-center gap-2"
+                    >
+                      <X className="w-4 h-4" />
+                      Mark All Absent
+                    </button>
+                  </div>
 
-              <div className="space-y-2">
-                {students.length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">No students found for this class</p>
-                ) : (
-                  students
-                    .sort((a, b) => a.fullName.localeCompare(b.fullName))
-                    .map((student, index) => {
-                      const status = statusMap[student.id] || 'present';
-                      return (
-                        <div
-                          key={student.id}
-                          className={`flex items-center justify-between p-3 rounded-lg border ${
-                            status === 'present' 
-                              ? 'bg-green-50 border-green-200' 
-                              : status === 'late'
-                              ? 'bg-yellow-50 border-yellow-200'
-                              : 'bg-red-50 border-red-200'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm font-medium text-gray-600 w-8">{index + 1}</span>
-                            <span className="font-medium text-gray-900">{student.fullName}</span>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleStatusChange(student.id, 'present')}
-                              className={`px-3 py-1 text-xs font-semibold rounded ${
-                                status === 'present'
-                                  ? 'bg-green-600 text-white'
-                                  : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                  <div className="space-y-2">
+                    {students.length === 0 ? (
+                      <p className="text-center text-gray-500 py-8">No students found for this class</p>
+                    ) : (
+                      students
+                        .sort((a, b) => a.fullName.localeCompare(b.fullName))
+                        .map((student, index) => {
+                          const status = statusMap[student.id] || 'present';
+                          return (
+                            <div
+                              key={student.id}
+                              className={`flex items-center justify-between p-3 rounded-lg border ${
+                                status === 'present' 
+                                  ? 'bg-green-50 border-green-200' 
+                                  : status === 'late'
+                                  ? 'bg-yellow-50 border-yellow-200'
+                                  : 'bg-red-50 border-red-200'
                               }`}
                             >
-                              Present
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(student.id, 'late')}
-                              className={`px-3 py-1 text-xs font-semibold rounded ${
-                                status === 'late'
-                                  ? 'bg-yellow-600 text-white'
-                                  : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-                              }`}
-                            >
-                              Late
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(student.id, 'absent')}
-                              className={`px-3 py-1 text-xs font-semibold rounded ${
-                                status === 'absent'
-                                  ? 'bg-red-600 text-white'
-                                  : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-                              }`}
-                            >
-                              Absent
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                )}
-              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm font-medium text-gray-600 w-8">{index + 1}</span>
+                                <span className="font-medium text-gray-900">{student.fullName}</span>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleStatusChange(student.id, 'present')}
+                                  className={`px-3 py-1 text-xs font-semibold rounded ${
+                                    status === 'present'
+                                      ? 'bg-green-600 text-white'
+                                      : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  Present
+                                </button>
+                                <button
+                                  onClick={() => handleStatusChange(student.id, 'late')}
+                                  className={`px-3 py-1 text-xs font-semibold rounded ${
+                                    status === 'late'
+                                      ? 'bg-yellow-600 text-white'
+                                      : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  Late
+                                </button>
+                                <button
+                                  onClick={() => handleStatusChange(student.id, 'absent')}
+                                  className={`px-3 py-1 text-xs font-semibold rounded ${
+                                    status === 'absent'
+                                      ? 'bg-red-600 text-white'
+                                      : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  Absent
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                    )}
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
               <button
                 onClick={() => setShowAttendanceModal(false)}
-                className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold"
+                disabled={loadingStudents || saving}
+                className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveAttendance}
-                disabled={saving || students.length === 0}
+                disabled={saving || students.length === 0 || loadingStudents}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Save Attendance'}

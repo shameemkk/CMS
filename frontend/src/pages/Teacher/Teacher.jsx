@@ -6,7 +6,6 @@ import Profile from './Profile';
 import Exam from './Exam';
 import Timetable from './Timetable';
 import Students from './Students';
-import Attendance from './Attendance';
 import MarkAttendance from './MarkAttendance';
 import Assignments from './Assignments';
 import Notifications from './Notifications';
@@ -27,7 +26,6 @@ const Teacher = () => {
     { id: 'exam', label: 'Exam', icon: '📝' },
     { id: 'students', label: 'Students', icon: '👨‍🎓' },
     { id: 'mark-attendance', label: 'Mark Attendance', icon: '✏️' },
-    { id: 'attendance', label: 'Attendance Records', icon: '✅' },
     { id: 'assignments', label: 'Assignments', icon: '📚' },
     { id: 'results', label: 'Results', icon: '📊' },
     { id: 'notifications', label: 'Notifications', icon: '🔔' },
@@ -53,8 +51,6 @@ const Teacher = () => {
         return <Students />;
       case 'mark-attendance':
         return <MarkAttendance />;
-      case 'attendance':
-        return <Attendance />;
       case 'assignments':
         return <Assignments />;
       case 'results':

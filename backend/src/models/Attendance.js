@@ -21,7 +21,6 @@ const attendanceSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Time slot is required'],
       trim: true,
-      enum: ['9:00 AM - 10:00 AM', '10:00 AM - 11:00 AM', '11:00 AM - 12:00 PM', '1:30 PM - 2:45 PM', '2:45 PM - 4:00 PM'],
     },
     status: {
       type: String,

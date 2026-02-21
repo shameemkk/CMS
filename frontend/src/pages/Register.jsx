@@ -13,6 +13,7 @@ const Register = () => {
     confirmPassword: '',
     department: '',
     accountType: '',
+    semester: '',
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -41,6 +42,12 @@ const Register = () => {
       return;
     }
 
+    // Validate semester for students
+    if (formData.accountType === 'Student' && !formData.semester) {
+      setError('Please select a semester');
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -62,6 +69,12 @@ const Register = () => {
         password: formData.password,
         confirmPassword: formData.confirmPassword,
       };
+      
+      // Add semester only for students
+      if (formData.accountType === 'Student') {
+        registrationData.semester = parseInt(formData.semester);
+      }
+      
       await register(registrationData);
       setSuccess('Registration successful. Please wait for admin approval.');
       setFormData({
@@ -72,6 +85,7 @@ const Register = () => {
         confirmPassword: '',
         department: '',
         accountType: '',
+        semester: '',
       });
       setTimeout(() => navigate('/login'), 1200);
     } catch (err) {
@@ -201,6 +215,29 @@ const Register = () => {
                 ))}
               </select>
             </div>
+
+            {formData.accountType === 'Student' && (
+              <div>
+                <label htmlFor="semester" className="block text-sm font-medium text-gray-700 mb-1">
+                  Semester
+                </label>
+                <select
+                  id="semester"
+                  name="semester"
+                  required
+                  value={formData.semester}
+                  onChange={handleChange}
+                  className="appearance-none relative block w-full px-3 py-2 border border-gray-300 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718] focus:border-transparent bg-white"
+                >
+                  <option value="">Select Semester</option>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+                    <option key={sem} value={sem}>
+                      Semester {sem}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">

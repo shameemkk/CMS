@@ -7,7 +7,7 @@ import Exam from './Exam';
 import Timetable from './Timetable';
 import Teachers from './Teachers';
 import Students from './Students';
-import Attendance from './Attendance';
+import MarkAttendance from '../Teacher/MarkAttendance';
 import Assignments from './Assignments';
 import Notifications from './Notifications';
 import LeaveRequests from './LeaveRequests';

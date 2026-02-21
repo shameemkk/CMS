@@ -67,6 +67,7 @@ export const api = {
     pending: () => request('/api/users/pending'),
     updateStatus: (id, status) => request(`/api/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
     list: (params) => request(`/api/users${buildQuery(params)}`),
+    promoteStudents: () => request('/api/users/promote-students', { method: 'POST' }),
   },
   dashboard: {
     stats: () => request('/api/dashboard/stats'),

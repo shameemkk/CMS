@@ -9,6 +9,7 @@ import {
   addTeacher,
   updateTeacher,
   deleteTeacher,
+  promoteStudents,
 } from '../controllers/user.controller.js';
 import { authMiddleware } from '../middlewares/auth.middleware.js';
 import { statusMiddleware } from '../middlewares/status.middleware.js';
@@ -37,6 +38,9 @@ router.get('/by-role', getUsersByRole);
 router.post('/teacher', authorizeRoles('hod', 'admin'), addTeacher);
 router.put('/teacher/:id', authorizeRoles('hod', 'admin'), updateTeacher);
 router.delete('/teacher/:id', authorizeRoles('hod', 'admin'), deleteTeacher);
+
+// Student promotion route (HOD and Admin)
+router.post('/promote-students', authorizeRoles('hod', 'admin'), promoteStudents);
 
 export default router;
 
