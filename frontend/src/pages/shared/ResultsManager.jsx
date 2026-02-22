@@ -7,23 +7,43 @@ const ResultsManager = () => {
   const [results, setResults] = useState([]);
   const [students, setStudents] = useState([]);
   const [exams, setExams] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [mySubjects, setMySubjects] = useState([]);
+  const [examSubjects, setExamSubjects] = useState([]);
   const [form, setForm] = useState({ studentId: '', examId: '', subject: '', marks: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const canDelete = useMemo(() => ['hod', 'admin'].includes(user?.role), [user?.role]);
+  const isHOD = useMemo(() => user?.role === 'hod', [user?.role]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [resultsResponse, studentsResponse, examsResponse] = await Promise.all([
+      const [resultsResponse, studentsResponse, examsResponse, subjectsResponse] = await Promise.all([
         api.results.list(),
         api.users.byRole('student'),
         api.exams.list(),
+        api.subjects.list(),
       ]);
       setResults(resultsResponse.results || []);
       setStudents(studentsResponse.users || []);
       setExams(examsResponse.exams || []);
+      
+      const allSubjects = subjectsResponse.subjects || [];
+      setSubjects(allSubjects);
+      
+      // Filter subjects for teachers (only their assigned subjects)
+      if (user?.role === 'teacher') {
+        const teacherSubjects = allSubjects.filter(
+          (subject) => subject.assignedTeacher?._id === user?.id || subject.assignedTeacher === user?.id
+        );
+        setMySubjects(teacherSubjects);
+      } else {
+        // HODs and admins can see all subjects
+        setMySubjects(allSubjects);
+      }
+      
       setError('');
     } catch (err) {
       setError(err.message || 'Failed to load results');
@@ -34,7 +54,30 @@ const ResultsManager = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user?.id]);
+
+  // Update available subjects when exam is selected
+  useEffect(() => {
+    if (form.examId) {
+      const selectedExam = exams.find(exam => exam._id === form.examId);
+      if (selectedExam && selectedExam.subjects) {
+        // Get subject names from the exam
+        const examSubjectNames = selectedExam.subjects.map(s => s.subjectName);
+        
+        // Filter mySubjects to only show subjects that are in this exam
+        const availableSubjects = mySubjects.filter(subject => 
+          examSubjectNames.includes(subject.name)
+        );
+        setExamSubjects(availableSubjects);
+      } else {
+        setExamSubjects([]);
+      }
+      // Reset subject when exam changes
+      setForm(prev => ({ ...prev, subject: '' }));
+    } else {
+      setExamSubjects([]);
+    }
+  }, [form.examId, exams, mySubjects]);
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -85,52 +128,91 @@ const ResultsManager = () => {
 
       <div className="bg-white rounded-xl shadow-md p-6">
         <h2 className="text-xl font-bold text-[#6e0718] mb-4">Create / Update Result</h2>
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <select
-            name="studentId"
-            value={form.studentId}
-            onChange={handleChange}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
-          >
-            <option value="">Select Student</option>
-            {students.map((student) => (
-              <option key={student.id} value={student.id}>
-                {student.fullName}
-              </option>
-            ))}
-          </select>
-          <select
-            name="examId"
-            value={form.examId}
-            onChange={handleChange}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
-          >
-            <option value="">Select Exam</option>
-            {exams.map((exam) => (
-              <option key={exam._id} value={exam._id}>
-                {exam.examName}
-              </option>
-            ))}
-          </select>
-          <input
-            name="subject"
-            value={form.subject}
-            onChange={handleChange}
-            placeholder="Subject"
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
-          />
-          <input
-            name="marks"
-            value={form.marks}
-            onChange={handleChange}
-            type="number"
-            placeholder="Marks"
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
-          />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Exam <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="examId"
+                value={form.examId}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
+              >
+                <option value="">Select Exam</option>
+                {exams.map((exam) => (
+                  <option key={exam._id} value={exam._id}>
+                    {exam.examName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Subject <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="subject"
+                value={form.subject}
+                onChange={handleChange}
+                required
+                disabled={!form.examId}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718] disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="">Select Subject</option>
+                {examSubjects.map((subject) => (
+                  <option key={subject._id} value={subject.name}>
+                    {subject.name} ({subject.code})
+                  </option>
+                ))}
+              </select>
+              {form.examId && examSubjects.length === 0 && (
+                <p className="text-xs text-red-600 mt-1">
+                  {isHOD ? 'No subjects available for this exam' : 'No subjects assigned to you for this exam'}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Student <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="studentId"
+                value={form.studentId}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
+              >
+                <option value="">Select Student</option>
+                {students.map((student) => (
+                  <option key={student.id} value={student.id}>
+                    {student.fullName} - Sem {student.semester}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Marks <span className="text-red-500">*</span>
+              </label>
+              <input
+                name="marks"
+                value={form.marks}
+                onChange={handleChange}
+                type="number"
+                min="0"
+                placeholder="Enter marks"
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
+              />
+            </div>
+          </div>
           <button
             type="submit"
             disabled={loading}
-            className="md:col-span-4 px-6 py-2 bg-[#6e0718] text-white rounded-lg hover:bg-[#8a0a1f] transition-colors font-semibold"
+            className="px-6 py-2 bg-[#6e0718] text-white rounded-lg hover:bg-[#8a0a1f] transition-colors font-semibold disabled:opacity-50"
           >
             {loading ? 'Saving...' : 'Save Result'}
           </button>

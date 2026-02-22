@@ -13,21 +13,33 @@ const TIME_SLOTS = [
 const slotOrder = (slot) => TIME_SLOTS.indexOf(slot);
 
 const STATUS_OPTIONS = [
-  { value: 'present', label: 'Present', bg: 'bg-green-50', border: 'border-green-600', text: 'text-green-700', badge: 'bg-green-100 text-green-800' },
-  { value: 'late', label: 'Late', bg: 'bg-yellow-50', border: 'border-yellow-600', text: 'text-yellow-700', badge: 'bg-yellow-100 text-yellow-800' },
-  { value: 'absent', label: 'Absent', bg: 'bg-red-50', border: 'border-red-600', text: 'text-red-700', badge: 'bg-red-100 text-red-800' },
+  { value: 'present', label: 'Present', bg: 'bg-[#1a8c4b]', text: 'text-white' },
+  { value: 'late', label: 'Late', bg: 'bg-[#f5b00c]', text: 'text-black' },
+  { value: 'absent', label: 'Absent', bg: 'bg-[#d62839]', text: 'text-white' },
 ];
-const getStatusStyle = (status) => STATUS_OPTIONS.find((s) => s.value === status)?.badge || 'bg-gray-100 text-gray-800';
+
+const getStatusStyle = (status) => {
+  const opt = STATUS_OPTIONS.find((s) => s.value === status);
+  if (opt) return `${opt.bg} ${opt.text}`;
+  return 'bg-[#1a8c4b] text-white';
+};
+
+const NEXT_STATUS = {
+  present: 'late',
+  late: 'absent',
+  absent: 'present',
+};
 
 const Attendance = () => {
   const { user } = useAuth();
   const [records, setRecords] = useState([]);
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [filters, setFilters] = useState({
     role: 'student',
     date: '',
-    department: 'BCA',
+    department: user?.role === 'student' ? user?.department : 'BCA',
   });
   const [markDate, setMarkDate] = useState(new Date().toISOString().slice(0, 10));
   const [markSlot, setMarkSlot] = useState(TIME_SLOTS[0]);
@@ -40,7 +52,7 @@ const Attendance = () => {
   const [showRecordsModal, setShowRecordsModal] = useState(false);
   const [selectedSlotRecords, setSelectedSlotRecords] = useState([]);
   const [selectedSlotInfo, setSelectedSlotInfo] = useState({ date: '', slot: '' });
-  const [nameModalStudent, setNameModalStudent] = useState(null); // { siNumber, fullName } | null
+  const [nameModalStudent, setNameModalStudent] = useState(null); // { siNumber, ...studentData } | null
 
   const canMark = useMemo(() => ['teacher', 'hod', 'admin'].includes(user?.role), [user?.role]);
 
@@ -103,6 +115,18 @@ const Attendance = () => {
   };
 
   useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const res = await api.departments.list({ status: 'active' });
+        if (res.data) setDepartments(res.data);
+      } catch (err) {
+        console.error('Failed to load departments', err);
+      }
+    };
+    fetchDepartments();
+  }, []);
+
+  useEffect(() => {
     loadRecords();
     loadStats();
   }, [filters.role, filters.date, filters.department]);
@@ -143,7 +167,7 @@ const Attendance = () => {
       } catch {
         const initial = {};
         users.forEach((u) => {
-          initial[u.id] = 'present';
+          initial[u.id] = 'nodata';
         });
         setStatusMap(initial);
       }
@@ -155,15 +179,18 @@ const Attendance = () => {
     setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleStatusChange = (userId, status) => {
-    setStatusMap((prev) => ({ ...prev, [userId]: status }));
+  const handleStatusToggle = (userId) => {
+    setStatusMap((prev) => ({
+      ...prev,
+      [userId]: NEXT_STATUS[prev[userId] || 'present']
+    }));
   };
 
   const handleSlotClick = (dateStr, slot, records) => {
     setSelectedSlotRecords(records.sort((a, b) => (a.userId?.fullName || '').localeCompare(b.userId?.fullName || '')));
-    setSelectedSlotInfo({ 
-      date: new Date(dateStr).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }), 
-      slot 
+    setSelectedSlotInfo({
+      date: new Date(dateStr).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }),
+      slot
     });
     setShowRecordsModal(true);
   };
@@ -185,10 +212,11 @@ const Attendance = () => {
     try {
       setLoading(true);
       setError('');
-      const records = users.map((u) => ({
-        userId: u.id,
-        status: statusMap[u.id] || 'present',
-      }));
+      const records = users
+        .map((u) => ({
+          userId: u.id,
+          status: statusMap[u.id],
+        }));
       await api.attendance.markBulk({
         date: markDate,
         timeSlot: markSlot,
@@ -266,9 +294,9 @@ const Attendance = () => {
               onChange={(e) => setMarkDepartment(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
             >
-              <option value="BCA">BCA</option>
-              <option value="BCom">BCom</option>
-              <option value="BA">BA</option>
+              {departments.map((d) => (
+                <option key={`mark-${d.code}`} value={d.code}>{d.name} ({d.code})</option>
+              ))}
             </select>
             <button
               type="button"
@@ -300,58 +328,38 @@ const Attendance = () => {
                 ×
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto min-h-0 p-6">
               <p className="text-gray-600 mb-4">
                 Set status per student: <span className="text-green-600 font-semibold">Present</span>, <span className="text-yellow-600 font-semibold">Late</span>, or <span className="text-red-600 font-semibold">Absent</span>.
               </p>
-              
+
               <form id="mark-attendance-form" onSubmit={handleMarkAttendanceBulk} className="space-y-4">
-                <div className="flex flex-wrap gap-2 items-center mb-4">
-                  {STATUS_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => handleMarkAll(opt.value)}
-                      className={`px-4 py-2 border-2 ${opt.border} ${opt.text} rounded-lg hover:opacity-90 transition-colors font-medium text-sm`}
-                    >
-                      Mark All {opt.label}
-                    </button>
-                  ))}
-                </div>
-                
-                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-3 justify-center max-w-full">
                     {users
                       .sort((a, b) => a.fullName.localeCompare(b.fullName))
                       .map((u, index) => {
                         const current = statusMap[u.id] || 'present';
-                        const opt = STATUS_OPTIONS.find((o) => o.value === current);
+                        const opt = STATUS_OPTIONS.find((o) => o.value === current) || STATUS_OPTIONS[0];
                         return (
-                          <div
-                            key={u.id}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg ${opt?.bg || 'bg-green-50'} border border-transparent`}
-                          >
+                          <div key={u.id} className="flex flex-col items-center gap-1">
                             <button
                               type="button"
-                              onClick={() => setNameModalStudent({ siNumber: index + 1, fullName: u.fullName })}
-                              className="text-sm font-medium text-[#6e0718] w-6 shrink-0 hover:underline focus:outline-none focus:ring-2 focus:ring-[#6e0718] focus:ring-offset-1 rounded"
-                              title="Click to show name"
+                              title={u.fullName}
+                              onClick={() => handleStatusToggle(u.id)}
+                              className={`flex items-center justify-center rounded-lg w-12 h-12 sm:w-14 sm:h-14 font-bold text-base sm:text-lg transition-transform hover:scale-105 active:scale-95 shadow-sm ${opt.bg} ${opt.text}`}
                             >
                               {index + 1}
                             </button>
-                            <div className="flex gap-1 flex-shrink-0 flex-1 justify-end">
-                              {STATUS_OPTIONS.map((s) => (
-                                <button
-                                  key={s.value}
-                                  type="button"
-                                  onClick={() => handleStatusChange(u.id, s.value)}
-                                  className={`px-2 py-1 text-xs font-semibold rounded ${current === s.value ? s.badge : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}
-                                >
-                                  {s.label}
-                                </button>
-                              ))}
-                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setNameModalStudent({ siNumber: index + 1, ...u }); }}
+                              className="text-gray-400 hover:text-[#6e0718] transition-colors p-0.5"
+                              title="View student details"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                            </button>
                           </div>
                         );
                       })}
@@ -359,6 +367,19 @@ const Attendance = () => {
                   {users.length === 0 && (
                     <p className="text-gray-500 text-center py-4">No students to mark.</p>
                   )}
+                </div>
+
+                <div className="flex flex-wrap gap-3 items-center justify-center mb-4 mt-8">
+                  {STATUS_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => handleMarkAll(opt.value)}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-transform hover:scale-105 shadow-sm ${opt.bg} ${opt.text} text-sm`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
               </form>
             </div>
@@ -388,11 +409,50 @@ const Attendance = () => {
                 onClick={() => setNameModalStudent(null)}
               >
                 <div
-                  className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4"
+                  className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <h4 className="text-sm font-medium text-gray-500 mb-1">SI No. {nameModalStudent.siNumber}</h4>
-                  <p className="text-lg font-semibold text-[#6e0718]">{nameModalStudent.fullName}</p>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-[#6e0718] text-white flex items-center justify-center font-bold text-lg">
+                      {nameModalStudent.fullName?.charAt(0)}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-medium text-gray-400">SI No. {nameModalStudent.siNumber}</h4>
+                      <p className="text-lg font-bold text-[#6e0718]">{nameModalStudent.fullName}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 bg-gray-50 rounded-lg p-4">
+                    {nameModalStudent.email && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Email</span>
+                        <span className="text-gray-800 font-medium">{nameModalStudent.email}</span>
+                      </div>
+                    )}
+                    {nameModalStudent.department && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Department</span>
+                        <span className="text-gray-800 font-medium">{nameModalStudent.department}</span>
+                      </div>
+                    )}
+                    {nameModalStudent.semester && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Semester</span>
+                        <span className="text-gray-800 font-medium">{nameModalStudent.semester}</span>
+                      </div>
+                    )}
+                    {nameModalStudent.phone && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Phone</span>
+                        <span className="text-gray-800 font-medium">{nameModalStudent.phone}</span>
+                      </div>
+                    )}
+                    {nameModalStudent.rollNumber && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Roll No</span>
+                        <span className="text-gray-800 font-medium">{nameModalStudent.rollNumber}</span>
+                      </div>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => setNameModalStudent(null)}
@@ -421,19 +481,25 @@ const Attendance = () => {
             placeholder="Select date"
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
           />
-          <select
-            name="department"
-            value={filters.department}
-            onChange={handleFilterChange}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
-          >
-            <option value="">All Departments</option>
-            <option value="BCA">BCA</option>
-            <option value="BCom">BCom</option>
-            <option value="BA">BA</option>
-          </select>
+          {user?.role === 'student' ? (
+            <div className="px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 font-medium">
+              Department: {user?.department || 'N/A'}
+            </div>
+          ) : (
+            <select
+              name="department"
+              value={filters.department}
+              onChange={handleFilterChange}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
+            >
+              <option value="">All Departments</option>
+              {departments.map((d) => (
+                <option key={`filter-${d.code}`} value={d.code}>{d.name} ({d.code})</option>
+              ))}
+            </select>
+          )}
           <button
-            onClick={() => setFilters((prev) => ({ ...prev, date: '', department: 'BCA' }))}
+            onClick={() => setFilters((prev) => ({ ...prev, date: '', department: user?.role === 'student' ? user?.department : (departments[0]?.code || 'BCA') }))}
             className="px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
           >
             Clear Filters
@@ -518,7 +584,7 @@ const Attendance = () => {
                 ×
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-6">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -550,7 +616,7 @@ const Attendance = () => {
                 )}
               </div>
             </div>
-            
+
             <div className="flex justify-end p-6 border-t border-gray-200 flex-shrink-0">
               <button
                 onClick={() => setShowRecordsModal(false)}

@@ -11,7 +11,7 @@ const Timetable = () => {
   const [semesterFilter, setSemesterFilter] = useState('odd'); // 'odd', 'even'
   const { user } = useAuth();
 
-  const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   const TIME_SLOTS = [
     '09:30-10:30',  // 1st period
     '10:30-11:20',  // 2nd period
@@ -19,6 +19,20 @@ const Timetable = () => {
     '13:30-14:30',  // 4th period (after lunch)
     '14:30-15:30',  // 5th period
   ];
+
+  // Convert 24-hour time to 12-hour AM/PM format
+  const convertTo12Hour = (time) => {
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  const formatTimeSlot = (timeSlot) => {
+    const [start, end] = timeSlot.split('-');
+    return `${convertTo12Hour(start)} - ${convertTo12Hour(end)}`;
+  };
 
   // Initialize selected semester based on user's semester
   useEffect(() => {
@@ -30,11 +44,10 @@ const Timetable = () => {
   }, [user, selectedSemester]);
 
   useEffect(() => {
-    if (selectedSemester === null) return; // Wait for semester to be initialized
-    
-    if (user?.role === 'teacher') {
+    if (user?.role === 'teacher' || user?.role === 'hod') {
       fetchTeacherTimetable();
     } else if (user?.role === 'student' && user?.department) {
+      if (selectedSemester === null) return; // Wait for semester to be initialized for students
       fetchStudentTimetable(user.department, selectedSemester);
     }
   }, [selectedSemester, user]);
@@ -42,7 +55,7 @@ const Timetable = () => {
   const fetchStudentTimetable = async (department, semester) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/timetable/${department}/${semester}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/timetable/${department}/${semester}`, {
         headers: {
           'Authorization': `Bearer ${api.token.get()}`
         }
@@ -65,7 +78,7 @@ const Timetable = () => {
   const fetchTeacherTimetable = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/timetable/teacher/my-schedule', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/timetable/teacher/my-schedule`, {
         headers: {
           'Authorization': `Bearer ${api.token.get()}`
         }
@@ -107,7 +120,7 @@ const Timetable = () => {
 
     // Filter time slots based on semester filter for teachers
     let filteredSlots = timetable.timeSlots;
-    if (user?.role === 'teacher') {
+    if (user?.role === 'teacher' || user?.role === 'hod') {
       filteredSlots = timetable.timeSlots.filter(slot => {
         if (semesterFilter === 'odd') {
           return slot.semester % 2 !== 0; // 1, 3, 5
@@ -157,7 +170,7 @@ const Timetable = () => {
             {TIME_SLOTS.map((timeSlot, index) => (
               <tr key={timeSlot} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                 <td className="border border-gray-300 px-4 py-3 font-medium text-gray-700 bg-gray-100">
-                  <div className="text-sm">{timeSlot}</div>
+                  <div className="text-sm">{formatTimeSlot(timeSlot)}</div>
                 </td>
                 {DAYS.map(day => {
                   const slot = grid[day][timeSlot];
@@ -173,12 +186,12 @@ const Timetable = () => {
                             <BookOpen className="w-3 h-3 mr-1" />
                             {slot.subject?.name}
                           </div>
-                          {user?.role === 'teacher' && slot.department && slot.semester && (
+                          {(user?.role === 'teacher' || user?.role === 'hod') && slot.department && slot.semester && (
                             <div className="text-xs mb-1 font-medium text-gray-700">
                               {slot.department} - Sem {slot.semester}
                             </div>
                           )}
-                          {user?.role !== 'teacher' && (
+                          {user?.role !== 'teacher' && user?.role !== 'hod' && (
                             <div className="text-xs mb-1 flex items-center">
                               <User className="w-3 h-3 mr-1" />
                               {slot.teacher?.fullName}
@@ -218,7 +231,7 @@ const Timetable = () => {
 
     // For teachers, use filtered slots based on semester filter
     let slotsForStats = timetable.timeSlots;
-    if (user?.role === 'teacher') {
+    if (user?.role === 'teacher' || user?.role === 'hod') {
       slotsForStats = timetable.timeSlots.filter(slot => {
         if (semesterFilter === 'odd') {
           return slot.semester % 2 !== 0; // 1, 3, 5
@@ -273,10 +286,10 @@ const Timetable = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            {user?.role === 'teacher' ? 'My Teaching Schedule' : 'Class Timetable'}
+            {(user?.role === 'teacher' || user?.role === 'hod') ? 'My Teaching Schedule' : 'Class Timetable'}
           </h1>
           <p className="text-gray-600">
-            {user?.role === 'teacher' 
+            {(user?.role === 'teacher' || user?.role === 'hod')
               ? 'Your weekly teaching schedule' 
               : `${user?.department} Department - Semester ${selectedSemester || user?.semester || 1}`
             }
@@ -284,7 +297,7 @@ const Timetable = () => {
         </div>
         
         <div className="flex items-center space-x-4">
-          {user?.role === 'teacher' && (
+          {(user?.role === 'teacher' || user?.role === 'hod') && (
             <select
               value={semesterFilter}
               onChange={(e) => setSemesterFilter(e.target.value)}

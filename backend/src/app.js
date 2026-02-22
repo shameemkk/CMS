@@ -15,6 +15,7 @@ import notificationRoutes from './routes/notification.routes.js';
 import leaveRequestRoutes from './routes/leaveRequest.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import subjectRoutes from './routes/subject.routes.js';
+import departmentRoutes from './routes/department.routes.js';
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/leave-requests', leaveRequestRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/subjects', subjectRoutes);
+app.use('/api/departments', departmentRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -15,7 +15,7 @@ const TIME_SLOTS = [
   { startTime: '14:30', endTime: '15:30' },  // 5th period
 ];
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 // Generate automatic timetable
 const generateTimetable = asyncHandler(async (req, res) => {
@@ -476,7 +476,7 @@ const updateTimetable = asyncHandler(async (req, res) => {
 
 // Get teacher's timetable
 const getTeacherTimetable = asyncHandler(async (req, res) => {
-  const teacherId = req.user.role === 'teacher' ? req.user._id : req.params.teacherId;
+  const teacherId = (req.user.role === 'teacher' || req.user.role === 'hod') ? req.user._id : req.params.teacherId;
 
   const timetables = await Timetable.find({
     'timeSlots.teacher': teacherId,

@@ -17,7 +17,6 @@ const subjectSchema = new mongoose.Schema(
     department: {
       type: String,
       required: [true, 'Department is required'],
-      enum: ['BCA', 'BCom', 'BA'],
     },
     semester: {
       type: Number,
@@ -56,8 +55,7 @@ const subjectSchema = new mongoose.Schema(
       default: 'active',
     },
     createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      type: mongoose.Schema.Types.Mixed,
       required: true,
     },
   },

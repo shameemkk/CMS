@@ -12,6 +12,14 @@ const leaveRequestSchema = new mongoose.Schema(
       required: [true, 'Role is required'],
       enum: ['student', 'teacher', 'hod'],
     },
+    startDate: {
+      type: Date,
+      required: [true, 'Start date is required'],
+    },
+    endDate: {
+      type: Date,
+      required: [true, 'End date is required'],
+    },
     reason: {
       type: String,
       required: [true, 'Reason is required'],

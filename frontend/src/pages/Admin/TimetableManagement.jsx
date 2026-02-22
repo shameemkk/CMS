@@ -26,6 +26,7 @@ const TimetableManagement = () => {
   const [subjects, setSubjects] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [departments, setDepartments] = useState([]);
 
   const { user } = useAuth();
 
@@ -34,7 +35,7 @@ const TimetableManagement = () => {
     semester: 1
   });
 
-  const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   const TIME_SLOTS = [
     '09:30-10:30',  // 1st period
     '10:30-11:20',  // 2nd period
@@ -42,6 +43,20 @@ const TimetableManagement = () => {
     '13:30-14:30',  // 4th period (after lunch)
     '14:30-15:30',  // 5th period
   ];
+
+  // Convert 24-hour time to 12-hour AM/PM format
+  const convertTo12Hour = (time) => {
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  const formatTimeSlot = (timeSlot) => {
+    const [start, end] = timeSlot.split('-');
+    return `${convertTo12Hour(start)} - ${convertTo12Hour(end)}`;
+  };
 
   // Get available semesters (exclude those with existing active/draft timetables)
   const getAvailableSemesters = () => {
@@ -58,6 +73,16 @@ const TimetableManagement = () => {
   };
 
   useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const res = await api.departments.list({ status: 'active' });
+        if (res.data) setDepartments(res.data);
+      } catch (err) {
+        console.error('Failed to load departments', err);
+      }
+    };
+    fetchDepartments();
+
     // Set HOD's department as default
     if (user?.role === 'hod' && user?.department) {
       setGenerateForm(prev => ({ ...prev, department: user.department }));
@@ -104,7 +129,7 @@ const TimetableManagement = () => {
         toast.success('Timetable generated successfully!');
         setShowGenerateModal(false);
         fetchTimetables();
-        setGenerateForm({ department: 'BCA', semester: 1 });
+        setGenerateForm({ department: departments[0]?.code || 'BCA', semester: 1 });
       } else {
         const error = await response.json();
         toast.error(error.message || 'Failed to generate timetable');
@@ -390,7 +415,7 @@ const TimetableManagement = () => {
             {TIME_SLOTS.map(timeSlot => (
               <tr key={timeSlot}>
                 <td className="border border-gray-300 px-4 py-2 font-medium text-gray-700 bg-gray-50">
-                  {timeSlot}
+                  {formatTimeSlot(timeSlot)}
                 </td>
                 {DAYS.map(day => {
                   const slot = grid[day][timeSlot];
@@ -612,9 +637,9 @@ const TimetableManagement = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     >
-                      <option value="BCA">BCA</option>
-                      <option value="BCom">BCom</option>
-                      <option value="BA">BA</option>
+                      {departments.map((d) => (
+                        <option key={d.code} value={d.code}>{d.name} ({d.code})</option>
+                      ))}
                     </select>
                   )}
                 </div>

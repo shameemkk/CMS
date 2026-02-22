@@ -36,7 +36,6 @@ const attendanceSchema = new mongoose.Schema(
     department: {
       type: String,
       required: [true, 'Department is required'],
-      enum: ['BCA', 'BCom', 'BA'],
     },
   },
   {

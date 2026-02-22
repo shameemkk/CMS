@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Subjects from '../shared/Subjects';
+import DepartmentManagement from './DepartmentManagement';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ const AdminDashboard = () => {
   const menuItems = [
     { id: 'approvals', label: 'User Approvals', icon: '✅' },
     { id: 'subjects', label: 'Subjects', icon: '📖' },
+    { id: 'departments', label: 'Departments', icon: '🏢' },
   ];
 
   const loadPendingUsers = async () => {
@@ -127,6 +129,8 @@ const AdminDashboard = () => {
         return renderApprovalsPage();
       case 'subjects':
         return <Subjects />;
+      case 'departments':
+        return <DepartmentManagement />;
       default:
         return (
           <div className="bg-white rounded-xl shadow-md p-8 text-center">
@@ -146,9 +150,8 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <aside
-        className={`${
-          sidebarOpen ? 'w-64' : 'w-20'
-        } bg-white shadow-lg transition-all duration-300 ease-in-out fixed h-screen overflow-y-auto`}
+        className={`${sidebarOpen ? 'w-64' : 'w-20'
+          } bg-white shadow-lg transition-all duration-300 ease-in-out fixed h-screen overflow-y-auto`}
       >
         <div className="p-4">
           <div className="flex items-center justify-between mb-8">
@@ -168,11 +171,10 @@ const AdminDashboard = () => {
               <button
                 key={item.id}
                 onClick={() => setActiveMenu(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                  activeMenu === item.id
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${activeMenu === item.id
                     ? 'bg-[#6e0718] text-white shadow-md'
                     : 'text-gray-700 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 <span className="text-xl">{item.icon}</span>
                 {sidebarOpen && (

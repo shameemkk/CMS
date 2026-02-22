@@ -1,0 +1,407 @@
+
+=============================================================
+   TIMETABLE GENERATION - COMPLETE DESCRIPTION FOR VIVA
+=============================================================
+
+
+1. WHAT IS TIMETABLE GENERATION? (Simple English)
+=============================================================
+
+The timetable module in this CMS automatically creates a weekly 
+class schedule for a given department and semester. Instead of 
+manually placing each subject in each time slot, the system uses 
+an algorithm that intelligently fills the timetable while avoiding 
+scheduling conflicts.
+
+
+2. STORY-MODEL EXPLANATION
+=============================================================
+
+--- Chapter 1: The Setup (Pre-requisites) ---
+
+Before you can generate a timetable, the Admin or HOD must have 
+already done these things:
+
+1. Created Subjects
+   - Example: Data Structures, DBMS, Web Development
+   - Each subject is linked to a department (e.g. BCA), 
+     semester (e.g. 3), and has a value called "hoursPerWeek" 
+     (how many periods per week that subject needs).
+
+2. Assigned Teachers
+   - Each subject has an "assignedTeacher" field that points 
+     to a teacher from the User model.
+
+3. Subject Types
+   - Each subject is marked as "theory", "practical", or "lab".
+
+Think of it like this: You have a list of courses, each with a 
+teacher's name on it and a note saying "I need 4 hours this week".
+
+
+--- Chapter 2: The HOD Clicks "Generate Timetable" ---
+
+The HOD opens the Timetable Management page on the frontend.
+They:
+
+1. Select the Department (e.g., BCA)
+   - If the user is HOD, the department is auto-locked to 
+     their own department.
+
+2. Select the Semester (e.g., 3)
+   - Only semesters that don't already have active/draft 
+     timetables are shown.
+
+3. Click the "Generate" button.
+
+The HOD says: "System, please make a timetable for BCA Semester 3."
+
+
+--- Chapter 3: The Backend Receives the Request ---
+
+The frontend sends a POST request to /api/timetable/generate.
+This hits the generateTimetable controller function.
+
+Here's what happens step by step:
+
+STEP 1: Validation & Security Check
+  - Is the department and semester provided? YES
+  - If the user is an HOD, can they only generate for their 
+    own department? YES (Security check)
+  - Does a timetable already exist for this department + semester? 
+    If yes -> Error ("Timetable already exists").
+
+STEP 2: Fetch All Subjects
+  The system queries the database:
+  "Find all subjects WHERE department = BCA AND semester = 3 
+   AND status = active"
+  
+  It also loads the assignedTeacher information for each subject.
+  If any subject has NO teacher assigned, it throws an error:
+  "Some subjects don't have assigned teachers: [list]"
+
+  The system opens the course catalog and checks: 
+  "Do all courses have a teacher? Good."
+
+STEP 3: Check for Existing Timetables (Conflict Prevention)
+  The system looks at other timetables in the same semester 
+  parity group:
+  
+  - Odd semesters: 1, 3, 5, 7 run at the same time
+  - Even semesters: 2, 4, 6, 8 run at the same time
+
+  Since Semester 3 is odd, it checks timetables of Semester 1, 
+  5, 7 in the same department.
+
+  WHY? Because one teacher might teach in multiple semesters, 
+  and they cannot be in two classrooms at the same time.
+
+  Example: "Teacher A is already teaching Maths in Semester 1 
+  on Monday 9:30-10:30. I must NOT put Teacher A in Semester 3 
+  at the same time."
+
+
+--- Chapter 4: The Algorithm - Filling the Grid ---
+
+This is the CORE LOGIC inside the generateTimeSlots() function.
+
+THE GRID STRUCTURE:
+The timetable is a 5 days x 5 periods grid:
+
+  Day         | Period 1     | Period 2     | Period 3     | Period 4     | Period 5
+              | 9:30-10:30   | 10:30-11:20  | 11:30-12:30  | 13:30-14:30  | 14:30-15:30
+  ------------|--------------|--------------|--------------|--------------|-------------
+  Monday      |      ?       |      ?       |      ?       |      ?       |      ?
+  Tuesday     |      ?       |      ?       |      ?       |      ?       |      ?
+  Wednesday   |      ?       |      ?       |      ?       |      ?       |      ?
+  Thursday    |      ?       |      ?       |      ?       |      ?       |      ?
+  Friday      |      ?       |      ?       |      ?       |      ?       |      ?
+
+That's 25 slots to fill.
+
+BREAKS:
+  - 10-minute break between Period 2 and 3 (11:20-11:30)
+  - 1-hour lunch break between Period 3 and 4 (12:30-13:30)
+
+
+THE FILLING PROCESS:
+
+The algorithm uses two tracking maps:
+
+1. teacherSchedule (Map)
+   - Tracks which time slots each teacher is already occupied in
+     (from other semesters + current timetable being built).
+
+2. subjectHoursScheduled (Map)
+   - Tracks how many periods have been assigned to each subject 
+     so far.
+
+It then loops through:
+
+  For each DAY (Monday to Friday):
+      For each TIME SLOT (Period 1 to Period 5):
+          Find a SUITABLE SUBJECT for this slot
+
+
+HOW "SUITABLE SUBJECT" IS FOUND (findSuitableSubject function):
+
+For each empty slot, the algorithm looks at all subjects and 
+filters them:
+
+1. SKIP if the subject has already reached its hoursPerWeek limit
+   (e.g., if DBMS needs 4 hours/week and already has 4, skip it).
+
+2. SKIP if the subject's teacher is already busy at that exact 
+   day+time (from another semester's timetable or from a slot 
+   already assigned in this timetable).
+
+3. SKIP if the subject is a "lab" type and the teacher isn't 
+   available for consecutive slots (labs need back-to-back periods).
+
+From the remaining subjects, it SORTS BY PRIORITY:
+  - Subjects with FEWER hours scheduled come first (so every 
+    subject gets fair distribution).
+  - If two subjects have the same scheduled hours, the one 
+    needing MORE total hours gets priority.
+
+If multiple subjects have the SAME priority, it uses the 
+Fisher-Yates shuffle algorithm to randomly pick one. This adds 
+RANDOMNESS so the timetable isn't identical every time you 
+generate it.
+
+Think of it like a card game: The system picks the most "hungry" 
+subject (the one that has the fewest classes assigned so far) and 
+puts it in the next empty slot - as long as the teacher is free.
+
+
+ROOM ASSIGNMENT:
+Each slot also gets a room number generated automatically:
+  - Theory subjects  -> Room R-101 to R-120
+  - Lab subjects     -> Room L-101 to L-120
+  - Practical subjects -> Room P-101 to P-120
+
+
+--- Chapter 5: Saving the Timetable ---
+
+Once all 25 slots are processed, the timetable is saved in 
+MongoDB with:
+
+  - department: "BCA"
+  - semester: 3
+  - academicYear: Auto-generated (e.g., "2026-2027")
+  - timeSlots: Array of all 25 slot objects
+  - status: "draft" (not yet active)
+  - createdBy: The HOD's user ID
+
+A UNIQUE COMPOUND INDEX ensures no duplicate timetables for 
+the same department + semester + academic year.
+
+The system saves the draft and says: "Here's your timetable. 
+Review it before making it live."
+
+
+--- Chapter 6: Review, Edit, and Activate ---
+
+VIEWING:
+The HOD can click the Eye icon to view the full timetable in 
+a grid format (table with days as columns and time slots as rows).
+Each cell shows:
+  - Subject name (color-coded: purple=theory, blue=lab, green=practical)
+  - Teacher name
+  - Room number
+
+EDITING:
+The HOD can click "Edit Timetable" to modify any slot:
+  - Change the subject in a cell (the teacher auto-fills based 
+    on the subject's assigned teacher)
+  - Change the teacher in a cell
+  - The system shows a RED WARNING if a teacher conflict is 
+    detected in real-time
+
+When saving edits, the backend RE-VALIDATES all conflicts:
+  - Checks against other timetables in the same semester parity
+  - Checks within the current timetable for duplicate teacher 
+    assignments
+  - If a conflict is found -> Error with clear message 
+    (e.g., "Teacher conflict: The selected teacher is already 
+    scheduled for Monday at 9:30-10:30 in another semester")
+
+ACTIVATING:
+Once satisfied, the HOD clicks the green checkmark to change 
+status from "draft" to "active".
+
+When a timetable is activated:
+  - All other timetables for the SAME department + semester 
+    are automatically ARCHIVED.
+  - Only one timetable can be "active" at a time for a given 
+    department + semester.
+
+
+--- Chapter 7: Who Can See What? ---
+
+  Role      | What they can do
+  ----------|--------------------------------------------------
+  Admin     | Generate, view, edit, activate, delete timetables 
+            | for ANY department
+  HOD       | Generate, view, edit, activate, delete timetables 
+            | for THEIR OWN department only
+  Teacher   | View THEIR PERSONAL SCHEDULE across all 
+            | departments/semesters (via /teacher/my-schedule)
+  Student   | View the timetable for THEIR OWN department 
+            | and semester
+
+
+3. TECHNICAL SUMMARY (Quick Reference)
+=============================================================
+
+FILES INVOLVED:
+
+  Component        | File                                          | Purpose
+  -----------------|-----------------------------------------------|------------------------------------------
+  Data Model       | backend/src/models/TimeTable.js               | Schema: department, semester, 
+                   |                                               | academicYear, timeSlots[], status
+  Subject Model    | backend/src/models/Subject.js                 | Subjects with hoursPerWeek, 
+                   |                                               | assignedTeacher, subjectType
+  Controller       | backend/src/controllers/timetable.controller.js | Core logic: generation algorithm, 
+                   |                                               | CRUD operations, conflict checking
+  Routes           | backend/src/routes/timetable.routes.js        | API endpoints with role-based 
+                   |                                               | access control
+  Frontend (Admin) | frontend/src/pages/Admin/TimetableManagement.jsx | UI: generate modal, grid view, 
+                   |                                               | edit mode, conflict warnings
+  Frontend (HOD)   | frontend/src/pages/HOD/Timetable.jsx          | Reuses TimetableManagement component
+  Frontend (Student)| frontend/src/pages/Student/Timetable.jsx     | Student view of timetable
+  Frontend (Teacher)| frontend/src/pages/Teacher/Timetable.jsx     | Teacher view of personal schedule
+
+
+API ENDPOINTS:
+
+  Method | Endpoint                        | Who Can Access     | Purpose
+  -------|---------------------------------|--------------------|---------------------------
+  POST   | /api/timetable/generate         | HOD, Admin         | Auto-generate a new timetable
+  GET    | /api/timetable/                 | HOD, Admin         | List all timetables
+  GET    | /api/timetable/:dept/:sem       | All logged-in users| View specific timetable
+  PUT    | /api/timetable/:id              | HOD, Admin         | Update/edit timetable slots
+  PATCH  | /api/timetable/:id/status       | HOD, Admin         | Change status (draft/active/archived)
+  DELETE | /api/timetable/:id              | HOD, Admin         | Delete a timetable
+  GET    | /api/timetable/teacher/my-schedule | Teacher, HOD    | Get personal teaching schedule
+
+
+DATABASE MODELS:
+
+  Timetable Model (TimeTable.js):
+    - department (String, required)
+    - semester (Number, 1-8, required)
+    - academicYear (String, auto-generated like "2026-2027")
+    - timeSlots (Array of timeSlotSchema)
+    - status (String: "draft", "active", "archived")
+    - createdBy (ObjectId -> User)
+    - lastModifiedBy (ObjectId -> User)
+    - timestamps (createdAt, updatedAt - automatic)
+    - Unique Index on: {department, semester, academicYear}
+
+  TimeSlot Sub-Schema:
+    - day (String: Monday-Friday)
+    - startTime (String, e.g. "09:30")
+    - endTime (String, e.g. "10:30")
+    - subject (ObjectId -> Subject)
+    - teacher (ObjectId -> User)
+    - room (String, default "TBA")
+    - subjectType (String: "theory", "practical", "lab")
+
+  Subject Model (Subject.js):
+    - name (String, required)
+    - code (String, unique, uppercase)
+    - department (String, required)
+    - semester (Number, 1-8)
+    - credits (Number, 1-10)
+    - hoursPerWeek (Number, 1-10) -- KEY FIELD for timetable
+    - subjectType (String: "theory", "practical", "lab")
+    - assignedTeacher (ObjectId -> User) -- KEY FIELD
+    - status (String: "active", "inactive")
+
+
+4. KEY ALGORITHM FEATURES
+=============================================================
+
+1. FAIR DISTRIBUTION
+   - Subjects with fewer assigned hours get priority, so all 
+     subjects are evenly spread across the week.
+
+2. CONFLICT-FREE
+   - No teacher is double-booked across same-parity semesters.
+   - Odd semesters (1,3,5,7) are checked together.
+   - Even semesters (2,4,6,8) are checked together.
+
+3. RANDOMIZED
+   - Fisher-Yates shuffle algorithm adds variety when multiple 
+     subjects have equal priority, so every generated timetable 
+     is slightly different.
+
+4. LAB-AWARE
+   - Lab subjects check for consecutive slot availability 
+     because labs typically need back-to-back periods.
+
+5. AUTO ROOM ASSIGNMENT
+   - Rooms are automatically assigned with prefixes:
+     R = Regular/Theory room
+     L = Lab room
+     P = Practical room
+   - Room numbers are random between 101-120.
+
+6. REAL-TIME CONFLICT DETECTION (Frontend)
+   - When editing, the UI shows red warnings if the same teacher 
+     is assigned to the same time slot in another semester.
+
+
+5. FLOW SUMMARY (End to End)
+=============================================================
+
+  [HOD/Admin clicks "Generate Timetable"]
+         |
+         v
+  [Frontend sends POST /api/timetable/generate 
+   with {department, semester}]
+         |
+         v
+  [Backend validates: department, semester, 
+   no existing timetable]
+         |
+         v
+  [Fetches all active subjects for that 
+   department + semester]
+         |
+         v
+  [Checks all teachers are assigned]
+         |
+         v
+  [Loads existing timetables from same-parity 
+   semesters for conflict checking]
+         |
+         v
+  [Runs generateTimeSlots() algorithm:
+   - Loops 5 days x 5 periods = 25 slots
+   - For each slot, finds best available subject
+   - Checks teacher availability
+   - Tracks hours per subject
+   - Assigns room automatically]
+         |
+         v
+  [Saves timetable in MongoDB with status = "draft"]
+         |
+         v
+  [Returns populated timetable to frontend]
+         |
+         v
+  [HOD reviews the grid, can edit if needed]
+         |
+         v
+  [HOD activates timetable (draft -> active)]
+         |
+         v
+  [Students and Teachers can now view 
+   the active timetable]
+
+
+=============================================================
+                    END OF DOCUMENT
+=============================================================

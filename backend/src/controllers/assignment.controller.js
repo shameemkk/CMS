@@ -42,6 +42,9 @@ export const createAssignment = asyncHandler(async (req, res) => {
     createdBy: createdByValue,
   });
 
+  // Populate subject before returning
+  await assignment.populate('subject', 'name code');
+
   // Format createdBy in response
   const assignmentObj = assignment.toObject();
   if (assignmentObj.createdBy === 'admin') {
@@ -81,7 +84,13 @@ export const getAssignments = asyncHandler(async (req, res) => {
     query.subject = subject;
   }
 
+  // Teachers can only see their own assignments
+  if (req.userRole === 'teacher') {
+    query.createdBy = req.userId;
+  }
+
   const assignments = await Assignment.find(query)
+    .populate('subject', 'name code')
     .sort({ createdAt: -1 });
 
   // Manually populate createdBy only if it's an ObjectId (not 'admin')
@@ -115,7 +124,8 @@ export const getAssignments = asyncHandler(async (req, res) => {
 export const getAssignment = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const assignment = await Assignment.findById(id);
+  const assignment = await Assignment.findById(id)
+    .populate('subject', 'name code');
 
   if (!assignment) {
     return res.status(404).json({
@@ -158,7 +168,8 @@ export const updateAssignment = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { subject, questions, dueDate, marks } = req.body;
 
-  const assignment = await Assignment.findById(id);
+  const assignment = await Assignment.findById(id)
+    .populate('subject', 'name code');
 
   if (!assignment) {
     return res.status(404).json({
@@ -184,7 +195,7 @@ export const updateAssignment = asyncHandler(async (req, res) => {
   const updatedAssignment = await Assignment.findByIdAndUpdate(id, updateData, {
     new: true,
     runValidators: true,
-  });
+  }).populate('subject', 'name code');
 
   // Format createdBy in response
   const assignmentObj = updatedAssignment.toObject();
@@ -207,12 +218,13 @@ export const updateAssignment = asyncHandler(async (req, res) => {
 /**
  * @desc    Delete Assignment
  * @route   DELETE /api/assignments/:id
- * @access  Private (HOD, Admin)
+ * @access  Private (Teacher can delete own, HOD/Admin can delete all)
  */
 export const deleteAssignment = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const assignment = await Assignment.findById(id);
+  const assignment = await Assignment.findById(id)
+    .populate('subject', 'name code');
 
   if (!assignment) {
     return res.status(404).json({
@@ -222,12 +234,24 @@ export const deleteAssignment = asyncHandler(async (req, res) => {
   }
 
   // Check permissions
-  if (req.userRole !== 'admin' && assignment.department !== req.userDepartment) {
-    return res.status(403).json({
-      success: false,
-      message: 'You can only delete assignments for your department',
-    });
+  if (req.userRole === 'teacher') {
+    // Teachers can only delete their own assignments
+    if (assignment.createdBy.toString() !== req.userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only delete assignments you created',
+      });
+    }
+  } else if (req.userRole === 'hod') {
+    // HODs can delete any assignment in their department
+    if (assignment.department !== req.userDepartment) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only delete assignments for your department',
+      });
+    }
   }
+  // Admins can delete any assignment (no additional check needed)
 
   await Assignment.findByIdAndDelete(id);
 

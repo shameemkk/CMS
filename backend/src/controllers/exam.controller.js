@@ -8,12 +8,12 @@ import { asyncHandler } from '../utils/errorHandler.js';
  * @access  Private (Teacher, HOD, Admin)
  */
 export const createExam = asyncHandler(async (req, res) => {
-  const { examName, subjects, examSchedule } = req.body;
+  const { examName, semester, subjects, examSchedule } = req.body;
 
-  if (!examName || !subjects || !examSchedule) {
+  if (!examName || !semester || !subjects || !examSchedule) {
     return res.status(400).json({
       success: false,
-      message: 'Exam name, subjects, and exam schedule are required',
+      message: 'Exam name, semester, subjects, and exam schedule are required',
     });
   }
 
@@ -42,6 +42,7 @@ export const createExam = asyncHandler(async (req, res) => {
 
   const exam = await Exam.create({
     department: departmentValue,
+    semester,
     examName,
     subjects,
     examSchedule,
@@ -181,6 +182,7 @@ export const updateExam = asyncHandler(async (req, res) => {
   if (examName) updateData.examName = examName;
   if (subjects) updateData.subjects = subjects;
   if (examSchedule) updateData.examSchedule = examSchedule;
+  // Note: semester is not updatable after creation
 
   const updatedExam = await Exam.findByIdAndUpdate(id, updateData, {
     new: true,

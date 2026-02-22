@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Subject from '../models/Subject.js';
+import Department from '../models/Department.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -10,9 +11,23 @@ const seedData = async () => {
     console.log('Starting data seeding for BCA department...');
 
     // Clear existing data
+    await Department.deleteMany({});
     await User.deleteMany({});
     await Subject.deleteMany({});
     console.log('✓ Cleared existing data');
+
+    // Create Departments
+    const adminUser = { _id: new mongoose.Types.ObjectId() }; // placeholder for createdBy since admin creates it usually
+    const departmentsData = [
+      { name: 'Computer Application', code: 'BCA', description: 'Bachelor of Computer Applications', createdBy: adminUser._id, status: 'active' },
+      { name: 'Commerce', code: 'BCom', description: 'Bachelor of Commerce', createdBy: adminUser._id, status: 'active' },
+      { name: 'Arts', code: 'BA', description: 'Bachelor of Arts', createdBy: adminUser._id, status: 'active' }
+    ];
+
+    for (const dept of departmentsData) {
+      await new Department(dept).save();
+    }
+    console.log('✓ 3 Departments created successfully');
 
     // HOD data
     const hodData = {
@@ -126,6 +141,7 @@ const seedData = async () => {
         email: 'aarav.sharma@student.edu',
         phone: '9876543220',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -135,6 +151,7 @@ const seedData = async () => {
         email: 'vivaan.patel@student.edu',
         phone: '9876543221',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -144,6 +161,7 @@ const seedData = async () => {
         email: 'aditya.kumar@student.edu',
         phone: '9876543222',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -153,6 +171,7 @@ const seedData = async () => {
         email: 'vihaan.singh@student.edu',
         phone: '9876543223',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -162,6 +181,7 @@ const seedData = async () => {
         email: 'arjun.gupta@student.edu',
         phone: '9876543224',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -171,6 +191,7 @@ const seedData = async () => {
         email: 'sai.reddy@student.edu',
         phone: '9876543225',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -180,6 +201,7 @@ const seedData = async () => {
         email: 'reyansh.jain@student.edu',
         phone: '9876543226',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -189,6 +211,7 @@ const seedData = async () => {
         email: 'ayaan.khan@student.edu',
         phone: '9876543227',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -198,6 +221,7 @@ const seedData = async () => {
         email: 'krishna.yadav@student.edu',
         phone: '9876543228',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -207,6 +231,7 @@ const seedData = async () => {
         email: 'ishaan.verma@student.edu',
         phone: '9876543229',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -216,6 +241,7 @@ const seedData = async () => {
         email: 'ananya.sharma@student.edu',
         phone: '9876543230',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -225,6 +251,7 @@ const seedData = async () => {
         email: 'diya.patel@student.edu',
         phone: '9876543231',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -234,6 +261,7 @@ const seedData = async () => {
         email: 'aadhya.singh@student.edu',
         phone: '9876543232',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -243,6 +271,7 @@ const seedData = async () => {
         email: 'pihu.gupta@student.edu',
         phone: '9876543233',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -252,6 +281,7 @@ const seedData = async () => {
         email: 'myra.kumar@student.edu',
         phone: '9876543234',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -261,6 +291,7 @@ const seedData = async () => {
         email: 'anika.rao@student.edu',
         phone: '9876543235',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -270,6 +301,7 @@ const seedData = async () => {
         email: 'kavya.mehta@student.edu',
         phone: '9876543236',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -279,6 +311,7 @@ const seedData = async () => {
         email: 'saanvi.joshi@student.edu',
         phone: '9876543237',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -288,6 +321,7 @@ const seedData = async () => {
         email: 'avni.agarwal@student.edu',
         phone: '9876543238',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -297,6 +331,7 @@ const seedData = async () => {
         email: 'riya.bansal@student.edu',
         phone: '9876543239',
         department: 'BCA',
+        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -400,7 +435,7 @@ const seedData = async () => {
     const createdSubjects = [];
     for (const subjectData of subjectsData) {
       // Find teacher with matching specialization
-      const assignedTeacher = createdTeachers.find(teacher => 
+      const assignedTeacher = createdTeachers.find(teacher =>
         teacher.specialization === subjectData.teacherSpecialization
       );
 
@@ -426,7 +461,7 @@ const seedData = async () => {
     console.log('🎉 Data seeding completed successfully!');
     console.log(`Total users created: ${1 + teachersData.length + studentsData.length}`);
     console.log(`Total subjects created: ${createdSubjects.length}`);
-    
+
   } catch (error) {
     console.error('❌ Error seeding data:', error.message);
     throw error;
@@ -438,9 +473,9 @@ const runSeeder = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to MongoDB');
-    
+
     await seedData();
-    
+
     await mongoose.disconnect();
     console.log('Disconnected from MongoDB');
     process.exit(0);

@@ -4,6 +4,18 @@ import { toast } from 'react-hot-toast';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
+const STATUS_OPTIONS = [
+  { value: 'present', label: 'Present', bg: 'bg-[#1a8c4b]', text: 'text-white' },
+  { value: 'late', label: 'Late', bg: 'bg-[#f5b00c]', text: 'text-black' },
+  { value: 'absent', label: 'Absent', bg: 'bg-[#d62839]', text: 'text-white' },
+];
+
+const NEXT_STATUS = {
+  present: 'late',
+  late: 'absent',
+  absent: 'present',
+};
+
 const MarkAttendance = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
   const [daySchedule, setDaySchedule] = useState([]);
@@ -14,6 +26,7 @@ const MarkAttendance = () => {
   const [statusMap, setStatusMap] = useState({});
   const [saving, setSaving] = useState(false);
   const [loadingStudents, setLoadingStudents] = useState(false);
+  const [studentDetailModal, setStudentDetailModal] = useState(null);
   const { user } = useAuth();
 
   const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -32,13 +45,13 @@ const MarkAttendance = () => {
           'Authorization': `Bearer ${api.token.get()}`
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
-        
+
         // Get day of week for selected date
         const dayOfWeek = DAYS[new Date(selectedDate).getDay()];
-        
+
         // Filter slots for the selected day
         const daySlots = [];
         if (data.data && data.data.length > 0) {
@@ -54,7 +67,7 @@ const MarkAttendance = () => {
             });
           });
         }
-        
+
         // Sort by start time
         daySlots.sort((a, b) => a.startTime.localeCompare(b.startTime));
         setDaySchedule(daySlots);
@@ -72,40 +85,40 @@ const MarkAttendance = () => {
     setLoadingStudents(true);
     setStudents([]);
     setStatusMap({});
-    
+
     try {
       // Fetch students for this department and semester
       const response = await api.users.byRole('student');
       const filteredStudents = response.users?.filter(
         student => student.department === slot.department && student.semester === slot.semester
       ) || [];
-      
+
       setStudents(filteredStudents);
-      
+
       // Load existing attendance for this slot
       const timeSlot = `${convertTo12Hour(slot.startTime)} - ${convertTo12Hour(slot.endTime)}`;
       const attendanceResponse = await api.attendance.list({
         date: selectedDate,
         timeSlot: timeSlot,
       });
-      
+
       const existing = attendanceResponse.attendance || [];
       const map = {};
-      
-      // Initialize status map with existing attendance or default to 'present'
+
+      // Initialize status map with existing attendance or default to 'nodata'
       filteredStudents.forEach((student) => {
         const existingRecord = existing.find((r) => {
           const recordUserId = r.userId?._id || r.userId;
           return recordUserId?.toString() === student.id?.toString();
         });
-        
+
         if (existingRecord && ['present', 'late', 'absent'].includes(existingRecord.status)) {
           map[student.id] = existingRecord.status;
         } else {
           map[student.id] = 'present';
         }
       });
-      
+
       setStatusMap(map);
     } catch (error) {
       console.error('Error loading students:', error);
@@ -123,8 +136,11 @@ const MarkAttendance = () => {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  const handleStatusChange = (studentId, status) => {
-    setStatusMap(prev => ({ ...prev, [studentId]: status }));
+  const handleStatusToggle = (studentId) => {
+    setStatusMap(prev => ({
+      ...prev,
+      [studentId]: NEXT_STATUS[prev[studentId] || 'present']
+    }));
   };
 
   const handleMarkAll = (status) => {
@@ -137,22 +153,23 @@ const MarkAttendance = () => {
 
   const handleSaveAttendance = async () => {
     if (!selectedSlot) return;
-    
+
     try {
       setSaving(true);
       const timeSlot = `${convertTo12Hour(selectedSlot.startTime)} - ${convertTo12Hour(selectedSlot.endTime)}`;
-      
-      const records = students.map(student => ({
-        userId: student.id,
-        status: statusMap[student.id] || 'present',
-      }));
-      
+
+      const records = students
+        .map(student => ({
+          userId: student.id,
+          status: statusMap[student.id],
+        }));
+
       await api.attendance.markBulk({
         date: selectedDate,
         timeSlot: timeSlot,
         records,
       });
-      
+
       toast.success('Attendance marked successfully');
       setShowAttendanceModal(false);
       setSelectedSlot(null);
@@ -202,11 +219,11 @@ const MarkAttendance = () => {
         <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
           <h2 className="text-lg font-semibold flex items-center">
             <Clock className="w-5 h-5 mr-2" />
-            Schedule for {new Date(selectedDate).toLocaleDateString(undefined, { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
+            Schedule for {new Date(selectedDate).toLocaleDateString(undefined, {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
             })}
           </h2>
         </div>
@@ -231,13 +248,12 @@ const MarkAttendance = () => {
                 <button
                   key={index}
                   onClick={() => handleSlotClick(slot)}
-                  className={`p-4 rounded-lg border-2 text-left transition-all hover:shadow-lg ${
-                    slot.subjectType === 'lab' 
-                      ? 'bg-blue-50 border-blue-300 hover:border-blue-500' 
-                      : slot.subjectType === 'practical'
+                  className={`p-4 rounded-lg border-2 text-left transition-all hover:shadow-lg ${slot.subjectType === 'lab'
+                    ? 'bg-blue-50 border-blue-300 hover:border-blue-500'
+                    : slot.subjectType === 'practical'
                       ? 'bg-green-50 border-green-300 hover:border-green-500'
                       : 'bg-purple-50 border-purple-300 hover:border-purple-500'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center">
@@ -246,7 +262,7 @@ const MarkAttendance = () => {
                     </div>
                     <Users className="w-4 h-4 text-gray-500" />
                   </div>
-                  
+
                   <div className="space-y-1 text-sm text-gray-700">
                     <div className="flex items-center">
                       <Clock className="w-3 h-3 mr-1" />
@@ -300,82 +316,49 @@ const MarkAttendance = () => {
                 </div>
               ) : (
                 <>
-                  <div className="flex gap-2 mb-4">
-                    <button
-                      onClick={() => handleMarkAll('present')}
-                      className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 font-medium text-sm flex items-center gap-2"
-                    >
-                      <Check className="w-4 h-4" />
-                      Mark All Present
-                    </button>
-                    <button
-                      onClick={() => handleMarkAll('absent')}
-                      className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium text-sm flex items-center gap-2"
-                    >
-                      <X className="w-4 h-4" />
-                      Mark All Absent
-                    </button>
+                  <div className="flex flex-wrap gap-3 items-center justify-center mb-6">
+                    {STATUS_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => handleMarkAll(opt.value)}
+                        className={`px-4 py-2 rounded-lg font-semibold transition-transform hover:scale-105 shadow-sm ${opt.bg} ${opt.text} text-sm`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
                   </div>
 
-                  <div className="space-y-2">
-                    {students.length === 0 ? (
-                      <p className="text-center text-gray-500 py-8">No students found for this class</p>
-                    ) : (
-                      students
-                        .sort((a, b) => a.fullName.localeCompare(b.fullName))
-                        .map((student, index) => {
-                          const status = statusMap[student.id] || 'present';
-                          return (
-                            <div
-                              key={student.id}
-                              className={`flex items-center justify-between p-3 rounded-lg border ${
-                                status === 'present' 
-                                  ? 'bg-green-50 border-green-200' 
-                                  : status === 'late'
-                                  ? 'bg-yellow-50 border-yellow-200'
-                                  : 'bg-red-50 border-red-200'
-                              }`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <span className="text-sm font-medium text-gray-600 w-8">{index + 1}</span>
-                                <span className="font-medium text-gray-900">{student.fullName}</span>
-                              </div>
-                              <div className="flex gap-2">
+                  <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-3 justify-center max-w-full">
+                      {students.length === 0 ? (
+                        <p className="text-center text-gray-500 py-8 col-span-7">No students found for this class</p>
+                      ) : (
+                        students
+                          .sort((a, b) => a.fullName.localeCompare(b.fullName))
+                          .map((student, index) => {
+                            const status = statusMap[student.id] || 'present';
+                            const opt = STATUS_OPTIONS.find((o) => o.value === status) || STATUS_OPTIONS[0];
+                            return (
+                              <div key={student.id} className="flex flex-col items-center gap-1">
                                 <button
-                                  onClick={() => handleStatusChange(student.id, 'present')}
-                                  className={`px-3 py-1 text-xs font-semibold rounded ${
-                                    status === 'present'
-                                      ? 'bg-green-600 text-white'
-                                      : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-                                  }`}
+                                  title={student.fullName}
+                                  onClick={() => handleStatusToggle(student.id)}
+                                  className={`flex items-center justify-center rounded-lg w-12 h-12 sm:w-14 sm:h-14 font-bold text-base sm:text-lg transition-transform hover:scale-105 active:scale-95 shadow-sm ${opt.bg} ${opt.text}`}
                                 >
-                                  Present
+                                  {index + 1}
                                 </button>
                                 <button
-                                  onClick={() => handleStatusChange(student.id, 'late')}
-                                  className={`px-3 py-1 text-xs font-semibold rounded ${
-                                    status === 'late'
-                                      ? 'bg-yellow-600 text-white'
-                                      : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-                                  }`}
+                                  onClick={(e) => { e.stopPropagation(); setStudentDetailModal({ siNumber: index + 1, ...student }); }}
+                                  className="text-gray-400 hover:text-blue-600 transition-colors p-0.5"
+                                  title="View student details"
                                 >
-                                  Late
-                                </button>
-                                <button
-                                  onClick={() => handleStatusChange(student.id, 'absent')}
-                                  className={`px-3 py-1 text-xs font-semibold rounded ${
-                                    status === 'absent'
-                                      ? 'bg-red-600 text-white'
-                                      : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-                                  }`}
-                                >
-                                  Absent
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
                                 </button>
                               </div>
-                            </div>
-                          );
-                        })
-                    )}
+                            );
+                          })
+                      )}
+                    </div>
                   </div>
                 </>
               )}
@@ -398,6 +381,67 @@ const MarkAttendance = () => {
               </button>
             </div>
           </div>
+
+          {/* Student Detail Popup */}
+          {studentDetailModal && (
+            <div
+              className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60]"
+              onClick={() => setStudentDetailModal(null)}
+            >
+              <div
+                className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-lg">
+                    {studentDetailModal.fullName?.charAt(0)}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-medium text-gray-400">SI No. {studentDetailModal.siNumber}</h4>
+                    <p className="text-lg font-bold text-gray-900">{studentDetailModal.fullName}</p>
+                  </div>
+                </div>
+                <div className="space-y-2 bg-gray-50 rounded-lg p-4">
+                  {studentDetailModal.email && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Email</span>
+                      <span className="text-gray-800 font-medium">{studentDetailModal.email}</span>
+                    </div>
+                  )}
+                  {studentDetailModal.department && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Department</span>
+                      <span className="text-gray-800 font-medium">{studentDetailModal.department}</span>
+                    </div>
+                  )}
+                  {studentDetailModal.semester && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Semester</span>
+                      <span className="text-gray-800 font-medium">{studentDetailModal.semester}</span>
+                    </div>
+                  )}
+                  {studentDetailModal.phone && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Phone</span>
+                      <span className="text-gray-800 font-medium">{studentDetailModal.phone}</span>
+                    </div>
+                  )}
+                  {studentDetailModal.rollNumber && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Roll No</span>
+                      <span className="text-gray-800 font-medium">{studentDetailModal.rollNumber}</span>
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => setStudentDetailModal(null)}
+                  className="mt-4 w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

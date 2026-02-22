@@ -23,7 +23,7 @@ router.post('/generate', authorizeRoles('hod', 'admin'), generateTimetable);
 router.get('/', authorizeRoles('hod', 'admin'), getAllTimetables);
 
 // Get teacher's personal timetable (MUST come before /:department/:semester)
-router.get('/teacher/my-schedule', authorizeRoles('teacher'), getTeacherTimetable);
+router.get('/teacher/my-schedule', authorizeRoles('teacher', 'hod'), getTeacherTimetable);
 
 // Get specific teacher's timetable (HOD/Admin only)
 router.get('/teacher/:teacherId', authorizeRoles('hod', 'admin'), getTeacherTimetable);

@@ -7,6 +7,8 @@ const HodStudents = () => {
   const [students, setStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [editingStudent, setEditingStudent] = useState(null);
+  const [editForm, setEditForm] = useState({});
   const [loading, setLoading] = useState(false);
   const [promoting, setPromoting] = useState(false);
   const [error, setError] = useState('');
@@ -42,6 +44,52 @@ const HodStudents = () => {
       toast.error(err.message || 'Failed to promote students');
     } finally {
       setPromoting(false);
+    }
+  };
+
+  const handleEdit = (student) => {
+    setEditingStudent(student);
+    setEditForm({
+      fullName: student.fullName,
+      email: student.email,
+      phone: student.phone,
+      semester: student.semester,
+    });
+  };
+
+  const handleEditChange = (e) => {
+    setEditForm({
+      ...editForm,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      await api.users.update(editingStudent.id, editForm);
+      toast.success('Student updated successfully');
+      setEditingStudent(null);
+      await loadStudents();
+    } catch (err) {
+      toast.error(err.message || 'Failed to update student');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (student) => {
+    if (!window.confirm(`Are you sure you want to delete ${student.fullName}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await api.users.remove(student.id);
+      toast.success('Student deleted successfully');
+      await loadStudents();
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete student');
     }
   };
 
@@ -152,12 +200,26 @@ const HodStudents = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <button
-                          onClick={() => setSelectedStudent(student)}
-                          className="text-[#6e0718] hover:text-[#8a0a1f] font-medium"
-                        >
-                          View Details
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setSelectedStudent(student)}
+                            className="text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            View
+                          </button>
+                          <button
+                            onClick={() => handleEdit(student)}
+                            className="text-[#6e0718] hover:text-[#8a0a1f] font-medium"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(student)}
+                            className="text-red-600 hover:text-red-800 font-medium"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -209,6 +271,98 @@ const HodStudents = () => {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {editingStudent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-xl w-full mx-4">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-[#6e0718]">Edit Student</h2>
+              <button
+                onClick={() => setEditingStudent(null)}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <form onSubmit={handleSaveEdit}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={editForm.fullName || ''}
+                    onChange={handleEditChange}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={editForm.email || ''}
+                    disabled
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={editForm.phone || ''}
+                    onChange={handleEditChange}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Semester <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="semester"
+                    value={editForm.semester || ''}
+                    onChange={handleEditChange}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+                      <option key={sem} value={sem}>
+                        Semester {sem}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingStudent(null)}
+                  className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-2 bg-[#6e0718] text-white rounded-lg hover:bg-[#8a0a1f] transition-colors font-semibold disabled:opacity-50"
+                >
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

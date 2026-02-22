@@ -66,6 +66,8 @@ export const api = {
     byRole: (role) => request(`/api/users/by-role${buildQuery({ role })}`),
     pending: () => request('/api/users/pending'),
     updateStatus: (id, status) => request(`/api/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+    update: (id, payload) => request(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+    remove: (id) => request(`/api/users/${id}`, { method: 'DELETE' }),
     list: (params) => request(`/api/users${buildQuery(params)}`),
     promoteStudents: () => request('/api/users/promote-students', { method: 'POST' }),
   },
@@ -117,6 +119,12 @@ export const api = {
     create: (payload) => request('/api/subjects', { method: 'POST', body: JSON.stringify(payload) }),
     update: (id, payload) => request(`/api/subjects/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
     remove: (id) => request(`/api/subjects/${id}`, { method: 'DELETE' }),
+  },
+  departments: {
+    list: (params) => request(`/api/departments${buildQuery(params)}`),
+    create: (payload) => request('/api/departments', { method: 'POST', body: JSON.stringify(payload) }),
+    update: (id, payload) => request(`/api/departments/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+    remove: (id) => request(`/api/departments/${id}`, { method: 'DELETE' }),
   },
   token: {
     get: getToken,

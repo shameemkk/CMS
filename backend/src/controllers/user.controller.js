@@ -442,3 +442,85 @@ export const promoteStudents = asyncHandler(async (req, res) => {
 });
 
 
+
+/**
+ * @desc    Update User (HOD/Admin)
+ * @route   PUT /api/users/:id
+ * @access  Private/HOD/Admin
+ */
+export const updateUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { fullName, phone, semester } = req.body;
+
+  const user = await User.findById(id);
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found',
+    });
+  }
+
+  // HODs can only update users in their department
+  if (req.userRole === 'hod' && user.department !== req.userDepartment) {
+    return res.status(403).json({
+      success: false,
+      message: 'You can only update users in your department',
+    });
+  }
+
+  // Update fields
+  if (fullName) user.fullName = fullName;
+  if (phone) user.phone = phone;
+  if (semester && user.role === 'student') user.semester = semester;
+
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'User updated successfully',
+    user: {
+      id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      department: user.department,
+      role: user.role,
+      semester: user.semester,
+      status: user.status,
+    },
+  });
+});
+
+/**
+ * @desc    Delete User (HOD/Admin)
+ * @route   DELETE /api/users/:id
+ * @access  Private/HOD/Admin
+ */
+export const deleteUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const user = await User.findById(id);
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: 'User not found',
+    });
+  }
+
+  // HODs can only delete users in their department
+  if (req.userRole === 'hod' && user.department !== req.userDepartment) {
+    return res.status(403).json({
+      success: false,
+      message: 'You can only delete users in your department',
+    });
+  }
+
+  await User.findByIdAndDelete(id);
+
+  res.status(200).json({
+    success: true,
+    message: 'User deleted successfully',
+  });
+});

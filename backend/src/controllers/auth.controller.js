@@ -54,7 +54,7 @@ export const adminLogin = asyncHandler(async (req, res) => {
  * @access  Public
  */
 export const register = asyncHandler(async (req, res) => {
-  const { fullName, email, phone, department, role, password, confirmPassword, semester } = req.body;
+  const { fullName, email, phone, department, role, password, confirmPassword, semester, specialization } = req.body;
 
   // Validation
   if (!fullName || !email || !phone || !department || !role || !password || !confirmPassword) {
@@ -112,6 +112,11 @@ export const register = asyncHandler(async (req, res) => {
     userData.semester = parseInt(semester);
   }
 
+  // Add specialization for teachers and HODs
+  if (role.toLowerCase() === 'teacher' || role.toLowerCase() === 'hod') {
+    userData.specialization = specialization || 'General';
+  }
+
   // Create user with pending status
   const user = await User.create(userData);
 
@@ -128,6 +133,11 @@ export const register = asyncHandler(async (req, res) => {
   // Include semester in response for students
   if (user.role === 'student') {
     responseUser.semester = user.semester;
+  }
+
+  // Include specialization for teachers and HODs
+  if (user.role === 'teacher' || user.role === 'hod') {
+    responseUser.specialization = user.specialization;
   }
 
   res.status(201).json({

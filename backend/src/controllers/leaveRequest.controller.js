@@ -8,7 +8,7 @@ import { asyncHandler } from '../utils/errorHandler.js';
  * @access  Private
  */
 export const createLeaveRequest = asyncHandler(async (req, res) => {
-  const { reason } = req.body;
+  const { reason, startDate, endDate } = req.body;
 
   if (!reason) {
     return res.status(400).json({
@@ -17,10 +17,34 @@ export const createLeaveRequest = asyncHandler(async (req, res) => {
     });
   }
 
+  if (!startDate) {
+    return res.status(400).json({
+      success: false,
+      message: 'Start date is required',
+    });
+  }
+
+  if (!endDate) {
+    return res.status(400).json({
+      success: false,
+      message: 'End date is required',
+    });
+  }
+
+  // Validate that end date is not before start date
+  if (new Date(endDate) < new Date(startDate)) {
+    return res.status(400).json({
+      success: false,
+      message: 'End date must be after or equal to start date',
+    });
+  }
+
   const leaveRequest = await LeaveRequest.create({
     requestedBy: req.userId,
     role: req.userRole,
     reason,
+    startDate,
+    endDate,
     status: 'pending',
   });
 
@@ -49,15 +73,15 @@ export const getLeaveRequests = asyncHandler(async (req, res) => {
     query.requestedBy = req.userId;
   } else if (req.userRole === 'hod') {
     // HOD can see requests from teachers in their department
-    query.role = 'teacher';
-    // We'll filter by department in the populate
+    // Don't set query.role here, we'll filter after populate
   }
 
   if (status) {
     query.status = status;
   }
 
-  if (role) {
+  // Only apply role filter if not HOD (HOD filtering is done after populate)
+  if (role && req.userRole !== 'hod') {
     query.role = role;
   }
 
@@ -65,10 +89,13 @@ export const getLeaveRequests = asyncHandler(async (req, res) => {
     .populate('requestedBy', 'fullName email department role')
     .sort({ createdAt: -1 });
 
-  // Filter by department for HOD
+  // Filter by department and role for HOD
   if (req.userRole === 'hod') {
     leaveRequests = leaveRequests.filter(
-      (request) => request.requestedBy.department === req.userDepartment
+      (request) => 
+        request.requestedBy && 
+        request.requestedBy.department === req.userDepartment &&
+        request.role === 'teacher'
     );
   }
 

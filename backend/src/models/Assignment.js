@@ -5,12 +5,11 @@ const assignmentSchema = new mongoose.Schema(
     department: {
       type: String,
       required: [true, 'Department is required'],
-      enum: ['BCA', 'BCom', 'BA', 'all'],
     },
     subject: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Subject',
       required: [true, 'Subject is required'],
-      trim: true,
     },
     questions: {
       type: String,

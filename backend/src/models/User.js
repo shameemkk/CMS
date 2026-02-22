@@ -24,14 +24,13 @@ const userSchema = new mongoose.Schema(
     department: {
       type: String,
       required: [true, 'Department is required'],
-      enum: ['BCA', 'BCom', 'BA'],
     },
     semester: {
       type: Number,
       min: 1,
       max: 8,
       // Only required for students
-      required: function() {
+      required: function () {
         return this.role === 'student';
       }
     },
@@ -43,9 +42,10 @@ const userSchema = new mongoose.Schema(
     specialization: {
       type: String,
       trim: true,
+      default: 'General',
       // Only required for teachers
-      required: function() {
-        return this.role === 'teacher';
+      required: function () {
+        return false; // Make it optional, will use default if not provided
       }
     },
     password: {

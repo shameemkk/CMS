@@ -26,8 +26,8 @@ router.get('/:id', getAssignment);
 // Update assignment (Teacher, HOD, Admin)
 router.put('/:id', roleMiddleware('teacher', 'hod', 'admin'), updateAssignment);
 
-// Delete assignment (HOD, Admin)
-router.delete('/:id', roleMiddleware('hod', 'admin'), deleteAssignment);
+// Delete assignment (Teacher can delete own, HOD/Admin can delete all)
+router.delete('/:id', roleMiddleware('teacher', 'hod', 'admin'), deleteAssignment);
 
 export default router;
 

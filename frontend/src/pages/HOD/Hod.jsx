@@ -10,7 +10,6 @@ import Students from './Students';
 import MarkAttendance from './MarkAttendance';
 import Assignments from './Assignments';
 import Notifications from './Notifications';
-import LeaveRequests from './LeaveRequests';
 import Results from './Results';
 import Subjects from '../shared/Subjects';
 
@@ -33,7 +32,6 @@ const Hod = () => {
     { id: 'assignments', label: 'Assignments', icon: '📚' },
     { id: 'results', label: 'Results', icon: '📊' },
     { id: 'notifications', label: 'Notifications', icon: '🔔' },
-    { id: 'leave-requests', label: 'Leave Requests', icon: '📝' },
   ];
 
   const handleLogout = () => {
@@ -65,8 +63,6 @@ const Hod = () => {
         return <Results />;
       case 'notifications':
         return <Notifications />;
-      case 'leave-requests':
-        return <LeaveRequests />;
       default:
         return (
           <div className="bg-white rounded-xl shadow-md p-8 text-center">

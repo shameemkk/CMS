@@ -4,7 +4,7 @@ const timeSlotSchema = new mongoose.Schema({
   day: {
     type: String,
     required: true,
-    enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
   },
   startTime: {
     type: String,
@@ -40,7 +40,6 @@ const timetableSchema = new mongoose.Schema(
     department: {
       type: String,
       required: [true, 'Department is required'],
-      enum: ['BCA', 'BCom', 'BA'],
     },
     semester: {
       type: Number,
@@ -63,8 +62,7 @@ const timetableSchema = new mongoose.Schema(
       default: 'draft',
     },
     createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      type: mongoose.Schema.Types.Mixed,
       required: true,
     },
     lastModifiedBy: {

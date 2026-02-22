@@ -5,7 +5,12 @@ const examSchema = new mongoose.Schema(
     department: {
       type: String,
       required: [true, 'Department is required'],
-      enum: ['BCA', 'BCom', 'BA', 'all'],
+    },
+    semester: {
+      type: Number,
+      required: [true, 'Semester is required'],
+      min: 1,
+      max: 8,
     },
     examName: {
       type: String,
@@ -14,6 +19,11 @@ const examSchema = new mongoose.Schema(
     },
     subjects: [
       {
+        subjectId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Subject',
+          required: true,
+        },
         subjectName: {
           type: String,
           required: true,
@@ -46,7 +56,7 @@ const examSchema = new mongoose.Schema(
     },
     createdBy: {
       type: mongoose.Schema.Types.Mixed,
-      required: [true, 'Created by is required'],
+      required: true,
       // Can be ObjectId (for Teacher/HOD) or String 'admin' (for admin)
     },
   },
