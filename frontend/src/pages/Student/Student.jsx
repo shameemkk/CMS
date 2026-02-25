@@ -9,7 +9,6 @@ import Teachers from './Teachers';
 import Attendance from './Attendance';
 import Assignments from './Assignments';
 import Notifications from './Notifications';
-import LeaveRequests from './LeaveRequests';
 
 const Student = () => {
   const navigate = useNavigate();
@@ -27,7 +26,6 @@ const Student = () => {
     { id: 'attendance', label: 'Attendance', icon: '✅' },
     { id: 'assignments', label: 'Assignments', icon: '📚' },
     { id: 'notifications', label: 'Notifications', icon: '🔔' },
-    { id: 'leave-requests', label: 'Leave Requests', icon: '📝' },
   ];
 
   const handleLogout = () => {
@@ -53,8 +51,6 @@ const Student = () => {
         return <Assignments />;
       case 'notifications':
         return <Notifications />;
-      case 'leave-requests':
-        return <LeaveRequests />;
       default:
         return (
           <div className="bg-white rounded-xl shadow-md p-8 text-center">

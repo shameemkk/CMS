@@ -1,4 +1,4 @@
-import Timetable from '../models/Timetable.js';
+import Timetable from '../models/TimeTable.js';
 import Subject from '../models/Subject.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
