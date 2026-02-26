@@ -126,6 +126,13 @@ export const api = {
     update: (id, payload) => request(`/api/departments/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
     remove: (id) => request(`/api/departments/${id}`, { method: 'DELETE' }),
   },
+  batches: {
+    list: (params) => request(`/api/batches${buildQuery(params)}`),
+    getById: (id) => request(`/api/batches/${id}`),
+    create: (payload) => request('/api/batches', { method: 'POST', body: JSON.stringify(payload) }),
+    update: (id, payload) => request(`/api/batches/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+    remove: (id) => request(`/api/batches/${id}`, { method: 'DELETE' }),
+  },
   token: {
     get: getToken,
     set: setToken,

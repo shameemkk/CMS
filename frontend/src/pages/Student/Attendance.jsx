@@ -1,7 +1,7 @@
 import React from 'react';
-import Attendance from '../shared/Attendance';
+import StudentAttendanceView from './StudentAttendanceView';
 
-const StudentAttendance = () => <Attendance />;
+const StudentAttendance = () => <StudentAttendanceView />;
 
 export default StudentAttendance;
 

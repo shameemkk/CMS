@@ -22,6 +22,10 @@ const attendanceSchema = new mongoose.Schema(
       required: [true, 'Time slot is required'],
       trim: true,
     },
+    subject: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Subject',
+    },
     status: {
       type: String,
       required: [true, 'Status is required'],

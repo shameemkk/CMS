@@ -12,8 +12,19 @@ const Teachers = () => {
     const loadTeachers = async () => {
       try {
         setLoading(true);
-        const response = await api.users.byRole('teacher');
-        setTeachers(response.users || []);
+        // Load both teachers and HODs
+        const [teachersResponse, hodsResponse] = await Promise.all([
+          api.users.byRole('teacher'),
+          api.users.byRole('hod')
+        ]);
+        
+        // Combine teachers and HODs
+        const allTeachers = [
+          ...(teachersResponse.users || []),
+          ...(hodsResponse.users || [])
+        ];
+        
+        setTeachers(allTeachers);
         setError('');
       } catch (err) {
         setError(err.message || 'Failed to load teachers');
@@ -86,7 +97,14 @@ const Teachers = () => {
               ) : (
                 filteredTeachers.map((teacher) => (
                   <tr key={teacher.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-800 font-medium">{teacher.fullName}</td>
+                    <td className="px-4 py-3 text-sm text-gray-800 font-medium">
+                      {teacher.fullName}
+                      {teacher.role === 'hod' && (
+                        <span className="ml-2 px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full font-semibold">
+                          HOD
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{teacher.email}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{teacher.phone}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{teacher.department}</td>
@@ -150,7 +168,9 @@ const Teachers = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-1">Role</label>
-                    <p className="text-gray-800">{selectedTeacher.role}</p>
+                    <p className="text-gray-800 capitalize">
+                      {selectedTeacher.role === 'hod' ? 'Head of Department (HOD)' : selectedTeacher.role}
+                    </p>
                   </div>
                 </div>
               </div>

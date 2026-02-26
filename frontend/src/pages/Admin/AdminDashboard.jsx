@@ -4,6 +4,7 @@ import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Subjects from '../shared/Subjects';
 import DepartmentManagement from './DepartmentManagement';
+import BatchManagement from './BatchManagement';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ const AdminDashboard = () => {
     { id: 'approvals', label: 'User Approvals', icon: '✅' },
     { id: 'subjects', label: 'Subjects', icon: '📖' },
     { id: 'departments', label: 'Departments', icon: '🏢' },
+    { id: 'batches', label: 'Batches', icon: '🎓' },
   ];
 
   const loadPendingUsers = async () => {
@@ -131,6 +133,8 @@ const AdminDashboard = () => {
         return <Subjects />;
       case 'departments':
         return <DepartmentManagement />;
+      case 'batches':
+        return <BatchManagement />;
       default:
         return (
           <div className="bg-white rounded-xl shadow-md p-8 text-center">

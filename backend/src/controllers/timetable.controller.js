@@ -206,6 +206,23 @@ function findSuitableSubject(subjects, subjectHoursScheduled, teacherSchedule, d
       return false;
     }
 
+    // Minor and Major subjects can ONLY be scheduled in 2nd period (slotIndex === 1)
+    if ((subject.subjectType === 'minor' || subject.subjectType === 'major') && slotIndex !== 1) {
+      return false;
+    }
+
+    // Non-minor/major subjects should NOT be scheduled in 2nd period if there are minor/major subjects that need scheduling
+    if (slotIndex === 1 && subject.subjectType !== 'minor' && subject.subjectType !== 'major') {
+      const hasUnscheduledMinorMajor = subjects.some(s => {
+        const sId = s._id.toString();
+        const sScheduled = subjectHoursScheduled.get(sId);
+        return (s.subjectType === 'minor' || s.subjectType === 'major') && sScheduled < s.hoursPerWeek;
+      });
+      if (hasUnscheduledMinorMajor) {
+        return false;
+      }
+    }
+
     // Check if teacher is available for this specific time slot
     const slotKey = `${day}-${timeSlot.startTime}-${timeSlot.endTime}`;
     if (teacherSchedule.get(teacherId).has(slotKey)) {
@@ -261,7 +278,9 @@ function generateRoomNumber(subjectType) {
   const roomPrefixes = {
     'theory': 'R',
     'lab': 'L',
-    'practical': 'P'
+    'practical': 'P',
+    'minor': 'R',
+    'major': 'R'
   };
 
   const prefix = roomPrefixes[subjectType] || 'R';

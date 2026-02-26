@@ -38,7 +38,7 @@ const subjectSchema = new mongoose.Schema(
     },
     subjectType: {
       type: String,
-      enum: ['theory', 'practical', 'lab'],
+      enum: ['theory', 'practical', 'lab', 'minor', 'major'],
       default: 'theory',
     },
     assignedTeacher: {

@@ -30,7 +30,7 @@ const timeSlotSchema = new mongoose.Schema({
   },
   subjectType: {
     type: String,
-    enum: ['theory', 'practical', 'lab'],
+    enum: ['theory', 'practical', 'lab', 'minor', 'major'],
     default: 'theory',
   }
 });
@@ -62,7 +62,8 @@ const timetableSchema = new mongoose.Schema(
       default: 'draft',
     },
     createdBy: {
-      type: mongoose.Schema.Types.Mixed,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
       required: true,
     },
     lastModifiedBy: {

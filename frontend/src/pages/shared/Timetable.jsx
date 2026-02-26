@@ -36,18 +36,17 @@ const Timetable = () => {
 
   // Initialize selected semester based on user's semester
   useEffect(() => {
-    if (user?.role === 'student' && user?.semester && selectedSemester === null) {
+    if (user?.role === 'student' && user?.semester) {
       setSelectedSemester(user.semester);
-    } else if (user?.role === 'student' && selectedSemester === null) {
+    } else if (user?.role === 'student') {
       setSelectedSemester(1);
     }
-  }, [user, selectedSemester]);
+  }, [user]);
 
   useEffect(() => {
     if (user?.role === 'teacher' || user?.role === 'hod') {
       fetchTeacherTimetable();
-    } else if (user?.role === 'student' && user?.department) {
-      if (selectedSemester === null) return; // Wait for semester to be initialized for students
+    } else if (user?.role === 'student' && user?.department && selectedSemester) {
       fetchStudentTimetable(user.department, selectedSemester);
     }
   }, [selectedSemester, user]);
@@ -305,20 +304,6 @@ const Timetable = () => {
             >
               <option value="odd">Odd Semester (1, 3, 5)</option>
               <option value="even">Even Semester (2, 4, 6)</option>
-            </select>
-          )}
-          
-          {user?.role === 'student' && (
-            <select
-              value={selectedSemester || user?.semester || 1}
-              onChange={(e) => setSelectedSemester(parseInt(e.target.value))}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
-                <option key={sem} value={sem}>
-                  Semester {sem} {user?.semester === sem ? '(Your Semester)' : ''}
-                </option>
-              ))}
             </select>
           )}
           
