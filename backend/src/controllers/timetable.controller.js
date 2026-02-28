@@ -21,6 +21,8 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const generateTimetable = asyncHandler(async (req, res) => {
   const { department, semester } = req.body;
 
+  console.log('🔍 Timetable generation request:', { department, semester, userRole: req.user.role, userDept: req.user.department });
+
   if (!department || !semester) {
     throw new ApiError(400, 'Department and semester are required');
   }
@@ -38,6 +40,8 @@ const generateTimetable = asyncHandler(async (req, res) => {
       status: { $in: ['active', 'draft'] }
     });
 
+    console.log('📋 Existing timetable check:', existingTimetable ? 'Found existing' : 'None found');
+
     if (existingTimetable) {
       throw new ApiError(400, 'Timetable already exists for this department and semester');
     }
@@ -49,13 +53,24 @@ const generateTimetable = asyncHandler(async (req, res) => {
       status: 'active'
     }).populate('assignedTeacher');
 
+    console.log('📚 Subjects found:', subjects.length);
+    console.log('📚 Subject details:', subjects.map(s => ({ 
+      name: s.name, 
+      code: s.code, 
+      hasTeacher: !!s.assignedTeacher,
+      teacherName: s.assignedTeacher?.fullName 
+    })));
+
     if (subjects.length === 0) {
       throw new ApiError(404, 'No subjects found for the specified department and semester');
     }
 
     // Validate that all subjects have assigned teachers
     const subjectsWithoutTeachers = subjects.filter(subject => !subject.assignedTeacher);
+    console.log('👨‍🏫 Subjects without teachers:', subjectsWithoutTeachers.length);
+    
     if (subjectsWithoutTeachers.length > 0) {
+      console.log('❌ Missing teachers for:', subjectsWithoutTeachers.map(s => s.name));
       throw new ApiError(400, `Some subjects don't have assigned teachers: ${subjectsWithoutTeachers.map(s => s.name).join(', ')}`);
     }
 
@@ -74,6 +89,7 @@ const generateTimetable = asyncHandler(async (req, res) => {
 
     // Generate timetable slots with conflict checking
     const timeSlots = generateTimeSlots(subjects, existingTimetables);
+    console.log('⏰ Generated time slots:', timeSlots.length);
 
     // Create new timetable
     const timetable = new Timetable({
@@ -85,6 +101,7 @@ const generateTimetable = asyncHandler(async (req, res) => {
     });
 
     await timetable.save();
+    console.log('✅ Timetable saved successfully with ID:', timetable._id);
 
     // Populate the created timetable
     const populatedTimetable = await Timetable.findById(timetable._id)
@@ -97,6 +114,8 @@ const generateTimetable = asyncHandler(async (req, res) => {
     );
 
   } catch (error) {
+    console.error('❌ Timetable generation error:', error.message);
+    console.error('❌ Full error:', error);
     throw new ApiError(500, `Failed to generate timetable: ${error.message}`);
   }
 });
@@ -526,6 +545,36 @@ const getTeacherTimetable = asyncHandler(async (req, res) => {
   );
 });
 
+// Debug endpoint to check subjects
+const debugSubjects = asyncHandler(async (req, res) => {
+  const { department, semester } = req.query;
+  
+  const filter = {};
+  if (department) filter.department = department;
+  if (semester) filter.semester = parseInt(semester);
+  
+  const subjects = await Subject.find(filter).populate('assignedTeacher', 'fullName email');
+  
+  const subjectInfo = subjects.map(s => ({
+    name: s.name,
+    code: s.code,
+    department: s.department,
+    semester: s.semester,
+    hoursPerWeek: s.hoursPerWeek,
+    subjectType: s.subjectType,
+    hasTeacher: !!s.assignedTeacher,
+    teacherName: s.assignedTeacher?.fullName,
+    status: s.status
+  }));
+  
+  res.status(200).json(
+    new ApiResponse(200, {
+      total: subjects.length,
+      subjects: subjectInfo
+    }, 'Subjects debug info')
+  );
+});
+
 export {
   generateTimetable,
   getTimetable,
@@ -533,5 +582,6 @@ export {
   updateTimetableStatus,
   deleteTimetable,
   getTeacherTimetable,
-  updateTimetable
+  updateTimetable,
+  debugSubjects
 };

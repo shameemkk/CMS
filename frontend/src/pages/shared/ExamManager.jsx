@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Eye } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -11,6 +12,8 @@ const ExamManager = () => {
   const [form, setForm] = useState(emptyExam);
   const [editingId, setEditingId] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewingExam, setViewingExam] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [allSubjects, setAllSubjects] = useState([]);
@@ -107,6 +110,16 @@ const ExamManager = () => {
     setEditingId(null);
     setShowEditModal(false);
     setForm(emptyExam);
+  };
+
+  const handleView = (exam) => {
+    setViewingExam(exam);
+    setShowViewModal(true);
+  };
+
+  const handleCloseView = () => {
+    setViewingExam(null);
+    setShowViewModal(false);
   };
 
   const handleSubmit = async (e) => {
@@ -496,6 +509,136 @@ const ExamManager = () => {
         </div>
       )}
 
+      {/* View Modal */}
+      {showViewModal && viewingExam && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-[#6e0718]">Exam Details</h2>
+              <button
+                onClick={handleCloseView}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="space-y-6">
+                {/* Exam Information */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">Exam Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">Exam Name</label>
+                      <p className="text-gray-800 font-medium">{viewingExam.examName}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">Semester</label>
+                      <p className="text-gray-800 font-medium">Semester {viewingExam.semester}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">Start Date</label>
+                      <p className="text-gray-800 font-medium">
+                        {viewingExam.examSchedule?.startDate
+                          ? new Date(viewingExam.examSchedule.startDate).toLocaleDateString('en-US', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })
+                          : 'Not specified'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">End Date</label>
+                      <p className="text-gray-800 font-medium">
+                        {viewingExam.examSchedule?.endDate
+                          ? new Date(viewingExam.examSchedule.endDate).toLocaleDateString('en-US', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })
+                          : 'Not specified'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Subjects Schedule */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">Exam Schedule</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border border-gray-200 rounded-lg">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">Subject</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">Date</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">Time</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">Venue</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {(viewingExam.subjects || []).length === 0 ? (
+                          <tr>
+                            <td colSpan="4" className="px-4 py-8 text-center text-gray-500">
+                              No subjects scheduled
+                            </td>
+                          </tr>
+                        ) : (
+                          (viewingExam.subjects || []).map((subject, index) => (
+                            <tr key={index} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm text-gray-800 font-medium">
+                                {subject.subjectName || 'Unknown Subject'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-600">
+                                {subject.date
+                                  ? new Date(subject.date).toLocaleDateString('en-US', {
+                                      weekday: 'short',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric'
+                                    })
+                                  : 'Not specified'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-600">
+                                {subject.time || 'Not specified'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-600">
+                                {subject.venue || 'Not specified'}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 mt-6">
+                <button
+                  onClick={handleCloseView}
+                  className="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    handleCloseView();
+                    handleEdit(viewingExam);
+                  }}
+                  className="px-6 py-2 bg-[#6e0718] text-white rounded-lg hover:bg-[#8a0a1f] transition-colors font-semibold"
+                >
+                  Edit Exam
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {error && !showEditModal && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
           {error}
@@ -541,6 +684,13 @@ const ExamManager = () => {
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <div className="flex gap-2">
+                        <button
+                          onClick={() => handleView(exam)}
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                        >
+                          <Eye size={16} />
+                          View
+                        </button>
                         <button
                           onClick={() => handleEdit(exam)}
                           className="text-[#6e0718] hover:text-[#8a0a1f] font-medium"

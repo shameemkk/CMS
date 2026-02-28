@@ -49,20 +49,31 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (payload) => {
     setAuthError('');
-    const response = await api.auth.login(payload);
-    api.token.set(response.token);
-    setUser(response.user);
-    localStorage.setItem(USER_KEY, JSON.stringify(response.user));
-    return response.user;
-  };
-
-  const adminLogin = async (payload) => {
-    setAuthError('');
-    const response = await api.auth.adminLogin(payload);
-    api.token.set(response.token);
-    setUser(response.user);
-    localStorage.setItem(USER_KEY, JSON.stringify(response.user));
-    return response.user;
+    
+    try {
+      // First try regular user login
+      const response = await api.auth.login(payload);
+      api.token.set(response.token);
+      setUser(response.user);
+      localStorage.setItem(USER_KEY, JSON.stringify(response.user));
+      return response.user;
+    } catch (regularLoginError) {
+      // If regular login fails, try admin login with username/password format
+      try {
+        const adminPayload = {
+          username: payload.email, // email field contains username for admin
+          password: payload.password
+        };
+        const response = await api.auth.adminLogin(adminPayload);
+        api.token.set(response.token);
+        setUser(response.user);
+        localStorage.setItem(USER_KEY, JSON.stringify(response.user));
+        return response.user;
+      } catch (adminLoginError) {
+        // If both fail, throw the original regular login error
+        throw regularLoginError;
+      }
+    }
   };
 
   const register = async (payload) => {
@@ -85,7 +96,6 @@ export const AuthProvider = ({ children }) => {
       authError,
       setAuthError,
       login,
-      adminLogin,
       register,
       logout,
       refreshUser: loadUser,

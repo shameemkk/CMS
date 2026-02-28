@@ -75,18 +75,18 @@ const Login = () => {
           <div className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address
+                Email / Username
               </label>
               <input
                 id="email"
                 name="email"
-                type="email"
+                type="text"
                 autoComplete="email"
                 required
                 value={formData.email}
                 onChange={handleChange}
                 className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718] focus:border-transparent"
-                placeholder="Enter your email"
+                placeholder="Enter your email or username"
               />
             </div>
 
@@ -118,7 +118,7 @@ const Login = () => {
             </button>
           </div>
 
-          <div className="text-center space-y-3">
+          <div className="text-center">
             <p className="text-sm text-gray-600">
               Don't have an account?{' '}
               <Link
@@ -126,15 +126,6 @@ const Login = () => {
                 className="font-medium text-[#6e0718] hover:text-[#8a0a1f] transition-colors"
               >
                 Sign up here
-              </Link>
-            </p>
-            
-            <p className="text-sm text-gray-600">
-              <Link
-                to="/admin/login"
-                className="font-medium text-[#6e0718] hover:text-[#8a0a1f] transition-colors"
-              >
-                Admin Login →
               </Link>
             </p>
           </div>

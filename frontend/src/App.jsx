@@ -7,7 +7,6 @@ import Hod from './pages/HOD/Hod';
 import Teacher from './pages/Teacher/Teacher';
 import Student from './pages/Student/Student';
 import ProtectedRoute from './components/ProtectedRoute';
-import AdminLogin from './pages/Admin/AdminLogin';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 
 const App = () => {
@@ -16,7 +15,6 @@ const App = () => {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/admin/login" element={<AdminLogin />} />
       <Route
         path="/admin"
         element={(

@@ -116,6 +116,8 @@ const TimetableManagement = () => {
     e.preventDefault();
     try {
       setLoading(true);
+      console.log('🔍 Generating timetable with:', generateForm);
+      
       const response = await fetch('/api/timetable/generate', {
         method: 'POST',
         headers: {
@@ -125,16 +127,20 @@ const TimetableManagement = () => {
         body: JSON.stringify(generateForm)
       });
 
+      const responseData = await response.json();
+      console.log('📋 Response:', responseData);
+
       if (response.ok) {
         toast.success('Timetable generated successfully!');
         setShowGenerateModal(false);
         fetchTimetables();
         setGenerateForm({ department: departments[0]?.code || 'BCA', semester: 1 });
       } else {
-        const error = await response.json();
-        toast.error(error.message || 'Failed to generate timetable');
+        console.error('❌ Error response:', responseData);
+        toast.error(responseData.message || 'Failed to generate timetable');
       }
     } catch (error) {
+      console.error('❌ Network error:', error);
       toast.error('Failed to generate timetable');
     } finally {
       setLoading(false);

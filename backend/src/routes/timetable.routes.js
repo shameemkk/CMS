@@ -6,7 +6,8 @@ import {
   updateTimetableStatus,
   deleteTimetable,
   getTeacherTimetable,
-  updateTimetable
+  updateTimetable,
+  debugSubjects
 } from '../controllers/timetable.controller.js';
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { authorizeRoles } from '../middlewares/roleAuth.middleware.js';
@@ -15,6 +16,9 @@ const router = Router();
 
 // Apply authentication to all routes
 router.use(verifyJWT);
+
+// Debug endpoint to check subjects (HOD/Admin only)
+router.get('/debug/subjects', authorizeRoles('hod', 'admin'), debugSubjects);
 
 // Generate timetable (HOD/Admin only)
 router.post('/generate', authorizeRoles('hod', 'admin'), generateTimetable);
