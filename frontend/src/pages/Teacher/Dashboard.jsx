@@ -225,7 +225,6 @@ const Dashboard = () => {
                 </div>
                 <div className="flex items-center gap-4 text-sm text-gray-600">
                   <span>🕐 {convertTo12Hour(slot.startTime)} - {convertTo12Hour(slot.endTime)}</span>
-                  <span>📍 {slot.room}</span>
                   <span className="capitalize">📖 {slot.subjectType}</span>
                 </div>
               </div>

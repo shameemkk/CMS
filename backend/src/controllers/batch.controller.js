@@ -3,17 +3,39 @@ import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
+const buildBatchCode = (department, startDate, endDate) => {
+  const parsedStartDate = new Date(startDate);
+  const parsedEndDate = new Date(endDate);
+  const startYear = parsedStartDate.getUTCFullYear();
+  const endYearShort = String(parsedEndDate.getUTCFullYear()).slice(-2);
+
+  return `${department}- ${startYear}-${endYearShort}`;
+};
+
 // Create batch
 const createBatch = asyncHandler(async (req, res) => {
-  const { prefix, letter, courseCode, courseName, startYear, endYear } = req.body;
+  const { department, startDate, endDate } = req.body;
 
   // Validate required fields
-  if (!prefix || !letter || !courseCode || !courseName || !startYear || !endYear) {
-    throw new ApiError(400, 'All fields are required');
+  if (!department || !startDate || !endDate) {
+    throw new ApiError(400, 'Department, start date, and end date are required');
   }
 
+  const parsedStartDate = new Date(startDate);
+  const parsedEndDate = new Date(endDate);
+
+  if (Number.isNaN(parsedStartDate.getTime()) || Number.isNaN(parsedEndDate.getTime())) {
+    throw new ApiError(400, 'Invalid start date or end date');
+  }
+
+  if (parsedEndDate <= parsedStartDate) {
+    throw new ApiError(400, 'End date must be greater than start date');
+  }
+
+  const normalizedDepartment = department.trim().toUpperCase();
+
   // Generate batch code
-  const batchCode = `${prefix}${letter}_${courseCode} (${startYear}-${endYear})`;
+  const batchCode = buildBatchCode(normalizedDepartment, parsedStartDate, parsedEndDate);
 
   // Check if batch already exists
   const existingBatch = await Batch.findOne({ batchCode });
@@ -23,12 +45,9 @@ const createBatch = asyncHandler(async (req, res) => {
 
   // Create batch
   const batch = await Batch.create({
-    prefix: prefix.toUpperCase(),
-    letter: letter.toUpperCase(),
-    courseCode: courseCode.toUpperCase(),
-    courseName,
-    startYear: parseInt(startYear),
-    endYear: parseInt(endYear),
+    department: normalizedDepartment,
+    startDate: parsedStartDate,
+    endDate: parsedEndDate,
     batchCode,
     createdBy: req.user._id,
   });
@@ -106,7 +125,7 @@ const getBatchById = asyncHandler(async (req, res) => {
 // Update batch
 const updateBatch = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { prefix, letter, courseCode, courseName, startYear, endYear, status } = req.body;
+  const { department, startDate, endDate, status } = req.body;
 
   const batch = await Batch.findById(id);
   if (!batch) {
@@ -114,17 +133,29 @@ const updateBatch = asyncHandler(async (req, res) => {
   }
 
   // Update fields if provided
-  if (prefix) batch.prefix = prefix.toUpperCase();
-  if (letter) batch.letter = letter.toUpperCase();
-  if (courseCode) batch.courseCode = courseCode.toUpperCase();
-  if (courseName) batch.courseName = courseName;
-  if (startYear) batch.startYear = parseInt(startYear);
-  if (endYear) batch.endYear = parseInt(endYear);
+  if (department) batch.department = department.trim().toUpperCase();
+  if (startDate) {
+    const parsedStartDate = new Date(startDate);
+    if (Number.isNaN(parsedStartDate.getTime())) {
+      throw new ApiError(400, 'Invalid start date');
+    }
+    batch.startDate = parsedStartDate;
+  }
+  if (endDate) {
+    const parsedEndDate = new Date(endDate);
+    if (Number.isNaN(parsedEndDate.getTime())) {
+      throw new ApiError(400, 'Invalid end date');
+    }
+    batch.endDate = parsedEndDate;
+  }
   if (status) batch.status = status;
 
   // Regenerate batch code if relevant fields changed
-  if (prefix || letter || courseCode || startYear || endYear) {
-    batch.batchCode = `${batch.prefix}${batch.letter}_${batch.courseCode} (${batch.startYear}-${batch.endYear})`;
+  if (department || startDate || endDate) {
+    if (batch.endDate <= batch.startDate) {
+      throw new ApiError(400, 'End date must be greater than start date');
+    }
+    batch.batchCode = buildBatchCode(batch.department, batch.startDate, batch.endDate);
   }
 
   await batch.save();

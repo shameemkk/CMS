@@ -3,27 +3,27 @@ import { api } from '../../services/api';
 
 const BatchManagement = () => {
   const [batches, setBatches] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
-    prefix: 'SFA',
-    letter: '',
-    courseCode: '',
-    courseName: '',
-    startYear: new Date().getFullYear(),
-    endYear: new Date().getFullYear() + 3,
+    department: '',
+    startDate: '',
+    endDate: '',
   });
   const [batchPreview, setBatchPreview] = useState('');
 
   useEffect(() => {
     loadBatches();
+    loadDepartments();
   }, []);
 
   useEffect(() => {
-    // Update preview whenever form data changes
-    if (formData.prefix && formData.letter && formData.courseCode && formData.startYear && formData.endYear) {
-      setBatchPreview(`${formData.prefix.toUpperCase()}${formData.letter.toUpperCase()}_${formData.courseCode.toUpperCase()} (${formData.startYear}-${formData.endYear})`);
+    if (formData.department && formData.startDate && formData.endDate) {
+      const startYear = new Date(formData.startDate).getUTCFullYear();
+      const endYearShort = String(new Date(formData.endDate).getUTCFullYear()).slice(-2);
+      setBatchPreview(`${formData.department.toUpperCase().trim()}- ${startYear}-${endYearShort}`);
     } else {
       setBatchPreview('');
     }
@@ -42,11 +42,20 @@ const BatchManagement = () => {
     }
   };
 
+  const loadDepartments = async () => {
+    try {
+      const response = await api.departments.list({ status: 'active' });
+      setDepartments(response.data || []);
+    } catch {
+      setDepartments([]);
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -57,12 +66,9 @@ const BatchManagement = () => {
       await api.batches.create(formData);
       setShowModal(false);
       setFormData({
-        prefix: 'SFA',
-        letter: '',
-        courseCode: '',
-        courseName: '',
-        startYear: new Date().getFullYear(),
-        endYear: new Date().getFullYear() + 3,
+        department: '',
+        startDate: '',
+        endDate: '',
       });
       await loadBatches();
       setError('');
@@ -75,7 +81,7 @@ const BatchManagement = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this batch?')) return;
-    
+
     try {
       setLoading(true);
       await api.batches.remove(id);
@@ -86,6 +92,23 @@ const BatchManagement = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatDate = (value) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString();
+  };
+
+  const getDuration = (batch) => {
+    if (batch.startDate && batch.endDate) {
+      return `${formatDate(batch.startDate)} - ${formatDate(batch.endDate)}`;
+    }
+    if (batch.startYear && batch.endYear) {
+      return `${batch.startYear} - ${batch.endYear}`;
+    }
+    return '-';
   };
 
   return (
@@ -99,7 +122,7 @@ const BatchManagement = () => {
           onClick={() => setShowModal(true)}
           className="bg-[#6e0718] text-white px-6 py-3 rounded-lg hover:bg-[#8a0a1f] transition-colors font-semibold flex items-center gap-2"
         >
-          <span>➕</span>
+          <span>+</span>
           <span>Create Batch</span>
         </button>
       </div>
@@ -116,7 +139,7 @@ const BatchManagement = () => {
             <thead>
               <tr className="bg-gray-100">
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Batch Code</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Course Name</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Department</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Duration</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
@@ -139,14 +162,18 @@ const BatchManagement = () => {
                 batches.map((batch) => (
                   <tr key={batch._id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-800 font-medium uppercase">{batch.batchCode}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{batch.courseName}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{batch.startYear} - {batch.endYear}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 uppercase">{batch.department || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{getDuration(batch)}</td>
                     <td className="px-4 py-3 text-sm">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        batch.status === 'active' ? 'bg-green-100 text-green-800' :
-                        batch.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          batch.status === 'active'
+                            ? 'bg-green-100 text-green-800'
+                            : batch.status === 'completed'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
                         {batch.status}
                       </span>
                     </td>
@@ -167,7 +194,6 @@ const BatchManagement = () => {
         </div>
       </div>
 
-      {/* Create Batch Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -178,82 +204,53 @@ const BatchManagement = () => {
                   onClick={() => setShowModal(false)}
                   className="text-gray-400 hover:text-gray-600 text-2xl"
                 >
-                  ✕
+                  x
                 </button>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Prefix
+                    Department <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    name="prefix"
-                    value={formData.prefix}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6e0718] focus:border-transparent"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Letter <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="letter"
-                    value={formData.letter}
-                    onChange={handleInputChange}
-                    maxLength="1"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6e0718] focus:border-transparent uppercase"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Course Code <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="courseCode"
-                    value={formData.courseCode}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6e0718] focus:border-transparent uppercase"
-                    placeholder="e.g., BCA"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Course Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="courseName"
-                    value={formData.courseName}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6e0718] focus:border-transparent"
-                    placeholder="e.g., Bachelor of Computer Application"
-                    required
-                  />
+                  {departments.length > 0 ? (
+                    <select
+                      name="department"
+                      value={formData.department}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6e0718] focus:border-transparent"
+                      required
+                    >
+                      <option value="">Select Department</option>
+                      {departments.map((department) => (
+                        <option key={department._id} value={department.code}>
+                          {department.code} - {department.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      name="department"
+                      value={formData.department}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6e0718] focus:border-transparent uppercase"
+                      placeholder="e.g., BCA"
+                      required
+                    />
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Start Year <span className="text-red-500">*</span>
+                      Start Date <span className="text-red-500">*</span>
                     </label>
                     <input
-                      type="number"
-                      name="startYear"
-                      value={formData.startYear}
+                      type="date"
+                      name="startDate"
+                      value={formData.startDate}
                       onChange={handleInputChange}
-                      min="2000"
-                      max="2100"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6e0718] focus:border-transparent"
                       required
                     />
@@ -261,15 +258,13 @@ const BatchManagement = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      End Year <span className="text-red-500">*</span>
+                      End Date <span className="text-red-500">*</span>
                     </label>
                     <input
-                      type="number"
-                      name="endYear"
-                      value={formData.endYear}
+                      type="date"
+                      name="endDate"
+                      value={formData.endDate}
                       onChange={handleInputChange}
-                      min="2000"
-                      max="2100"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6e0718] focus:border-transparent"
                       required
                     />
@@ -278,9 +273,7 @@ const BatchManagement = () => {
 
                 {batchPreview && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Preview
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Preview</label>
                     <div className="w-full px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-700 font-medium">
                       {batchPreview}
                     </div>

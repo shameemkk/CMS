@@ -1,47 +1,30 @@
 import mongoose from 'mongoose';
 
+const formatDateForCode = (date) => {
+  const parsedDate = new Date(date);
+  return parsedDate.getUTCFullYear();
+};
+
 const batchSchema = new mongoose.Schema(
   {
-    prefix: {
+    department: {
       type: String,
-      required: [true, 'Prefix is required'],
+      required: [true, 'Department is required'],
       trim: true,
       uppercase: true,
     },
-    letter: {
-      type: String,
-      required: [true, 'Letter is required'],
-      trim: true,
-      uppercase: true,
-      maxlength: 1,
+    startDate: {
+      type: Date,
+      required: [true, 'Start date is required'],
     },
-    courseCode: {
-      type: String,
-      required: [true, 'Course code is required'],
-      trim: true,
-      uppercase: true,
-    },
-    courseName: {
-      type: String,
-      required: [true, 'Course name is required'],
-      trim: true,
-    },
-    startYear: {
-      type: Number,
-      required: [true, 'Start year is required'],
-      min: 2000,
-      max: 2100,
-    },
-    endYear: {
-      type: Number,
-      required: [true, 'End year is required'],
-      min: 2000,
-      max: 2100,
+    endDate: {
+      type: Date,
+      required: [true, 'End date is required'],
       validate: {
         validator: function(value) {
-          return value > this.startYear;
+          return value > this.startDate;
         },
-        message: 'End year must be greater than start year'
+        message: 'End date must be greater than start date'
       }
     },
     batchCode: {
@@ -68,7 +51,9 @@ const batchSchema = new mongoose.Schema(
 // Generate batch code before saving
 batchSchema.pre('save', function (next) {
   if (!this.batchCode) {
-    this.batchCode = `${this.prefix}${this.letter}_${this.courseCode} (${this.startYear}-${this.endYear})`;
+    const startYear = formatDateForCode(this.startDate);
+    const endYearShort = String(formatDateForCode(this.endDate)).slice(-2);
+    this.batchCode = `${this.department}- ${startYear}-${endYearShort}`;
   }
   next();
 });

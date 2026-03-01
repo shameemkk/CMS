@@ -184,37 +184,44 @@ const Timetable = () => {
                 </td>
                 {DAYS.map(day => {
                   const slot = grid[day][timeSlot];
+                  const isStudent = user?.role !== 'teacher' && user?.role !== 'hod';
                   return (
                     <td key={`${day}-${timeSlot}`} className="border border-gray-300 px-2 py-2">
                       {slot ? (
-                        <div className={`p-3 rounded-lg text-sm shadow-sm ${
-                          slot.subjectType === 'lab' ? 'bg-blue-100 text-blue-900 border-l-4 border-blue-500' :
-                          slot.subjectType === 'practical' ? 'bg-green-100 text-green-900 border-l-4 border-green-500' :
-                          'bg-purple-100 text-purple-900 border-l-4 border-purple-500'
-                        }`}>
-                          <div className="font-semibold mb-1 flex items-center">
-                            <BookOpen className="w-3 h-3 mr-1" />
-                            {slot.subject?.name}
+                        isStudent && slot.isReserved ? (
+                          <div className="p-3 rounded-lg text-sm shadow-sm bg-orange-100 text-orange-900 border-l-4 border-orange-500 font-semibold">
+                            {slot.reservedLabel || 'Reserved'}
                           </div>
-                          {(user?.role === 'teacher' || user?.role === 'hod') && slot.department && slot.semester && (
-                            <div className="text-xs mb-1 font-medium text-gray-700">
-                              {slot.department} - Sem {slot.semester}
+                        ) : (
+                          <div className={`p-3 rounded-lg text-sm shadow-sm ${
+                            slot.subjectType === 'lab' ? 'bg-blue-100 text-blue-900 border-l-4 border-blue-500' :
+                            slot.subjectType === 'practical' ? 'bg-green-100 text-green-900 border-l-4 border-green-500' :
+                            'bg-purple-100 text-purple-900 border-l-4 border-purple-500'
+                          }`}>
+                            <div className="font-semibold mb-1 flex items-center">
+                              <BookOpen className="w-3 h-3 mr-1" />
+                              {slot.subject?.name}
                             </div>
-                          )}
-                          {user?.role !== 'teacher' && user?.role !== 'hod' && (
-                            <div className="text-xs mb-1 flex items-center">
-                              <User className="w-3 h-3 mr-1" />
-                              {slot.teacher?.fullName}
+                            {(user?.role === 'teacher' || user?.role === 'hod') && slot.department && slot.semester && (
+                              <div className="text-xs mb-1 font-medium text-gray-700">
+                                {slot.department} - Sem {slot.semester}
+                              </div>
+                            )}
+                            {isStudent && (
+                              <div className="text-xs mb-1 flex items-center">
+                                <User className="w-3 h-3 mr-1" />
+                                {slot.teacher?.fullName}
+                              </div>
+                            )}
+                            {/* <div className="text-xs flex items-center"> */}
+                              {/* <MapPin className="w-3 h-3 mr-1" /> */}
+                              {/* {slot.room} */}
+                            {/* </div> */}
+                            <div className="text-xs mt-1 opacity-75">
+                              {slot.subjectType.charAt(0).toUpperCase() + slot.subjectType.slice(1)}
                             </div>
-                          )}
-                          <div className="text-xs flex items-center">
-                            <MapPin className="w-3 h-3 mr-1" />
-                            {slot.room}
                           </div>
-                          <div className="text-xs mt-1 opacity-75">
-                            {slot.subjectType.charAt(0).toUpperCase() + slot.subjectType.slice(1)}
-                          </div>
-                        </div>
+                        )
                       ) : (
                         <div className="h-20 flex items-center justify-center text-gray-400 text-sm">
                           <div className="text-center">
