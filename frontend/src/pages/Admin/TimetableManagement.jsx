@@ -30,6 +30,17 @@ const TimetableManagement = () => {
   const [departments, setDepartments] = useState([]);
 
   const { user } = useAuth();
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+  const parseResponseData = async (response) => {
+    const text = await response.text();
+    if (!text) return {};
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {};
+    }
+  };
 
   const [generateForm, setGenerateForm] = useState({
     department: 'BCA', // Default value, will be updated when user loads
@@ -139,7 +150,7 @@ const TimetableManagement = () => {
       console.log('🔍 Generating timetable with:', requestData);
       console.log('👤 User info:', { role: user?.role, department: user?.department });
       
-      const response = await fetch('/api/timetable/generate', {
+      const response = await fetch(`${API_BASE_URL}/api/timetable/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -148,7 +159,7 @@ const TimetableManagement = () => {
         body: JSON.stringify(requestData)
       });
 
-      const responseData = await response.json();
+      const responseData = await parseResponseData(response);
       console.log('📋 Response:', responseData);
 
       if (response.ok) {
@@ -201,7 +212,7 @@ const TimetableManagement = () => {
 
   const handleStatusUpdate = async (id, status) => {
     try {
-      const response = await fetch(`/api/timetable/${id}/status`, {
+      const response = await fetch(`${API_BASE_URL}/api/timetable/${id}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -227,7 +238,7 @@ const TimetableManagement = () => {
     }
 
     try {
-      const response = await fetch(`/api/timetable/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/timetable/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${api.token.get()}`
@@ -247,14 +258,14 @@ const TimetableManagement = () => {
 
   const viewTimetable = async (department, semester) => {
     try {
-      const response = await fetch(`/api/timetable/${department}/${semester}`, {
+      const response = await fetch(`${API_BASE_URL}/api/timetable/${department}/${semester}`, {
         headers: {
           'Authorization': `Bearer ${api.token.get()}`
         }
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const data = await parseResponseData(response);
         setSelectedTimetable(data.data);
         setEditForm(JSON.parse(JSON.stringify(data.data.timeSlots || [])));
         setShowViewModal(true);
@@ -283,7 +294,7 @@ const TimetableManagement = () => {
   const handleSaveEdit = async () => {
     try {
       setSavingEdit(true);
-      const response = await fetch(`/api/timetable/${selectedTimetable._id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/timetable/${selectedTimetable._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -293,14 +304,14 @@ const TimetableManagement = () => {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const data = await parseResponseData(response);
         toast.success('Timetable updated successfully!');
         setSelectedTimetable(data.data);
         setEditForm(JSON.parse(JSON.stringify(data.data.timeSlots || [])));
         setIsEditMode(false);
         fetchTimetables();
       } else {
-        const error = await response.json();
+        const error = await parseResponseData(response);
         // Display backend error on failure, don't clear the form
         toast.error(error.message || 'Failed to update timetable', { duration: 6000 });
       }

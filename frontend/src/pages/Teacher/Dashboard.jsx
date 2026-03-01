@@ -22,6 +22,7 @@ const formatSubjectTimeRange = (subject) => {
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
   const [stats, setStats] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
   const [upcomingExams, setUpcomingExams] = useState([]);
@@ -29,6 +30,16 @@ const Dashboard = () => {
   const [expandedSubject, setExpandedSubject] = useState(null);
   const [timetable, setTimetable] = useState([]);
   const [loadingTimetable, setLoadingTimetable] = useState(false);
+
+  const parseResponseData = async (response) => {
+    const text = await response.text();
+    if (!text) return {};
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {};
+    }
+  };
 
   const teacherName = user?.fullName || 'Teacher';
   const teacherDepartment = user?.department || '-';
@@ -96,14 +107,14 @@ const Dashboard = () => {
   const loadTeacherTimetable = async () => {
     try {
       setLoadingTimetable(true);
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/timetable/teacher/my-schedule`, {
+      const response = await fetch(`${API_BASE_URL}/api/timetable/teacher/my-schedule`, {
         headers: {
           'Authorization': `Bearer ${api.token.get()}`
         }
       });
       
       if (response.ok) {
-        const data = await response.json();
+        const data = await parseResponseData(response);
         setTimetable(data.data || []);
       }
     } catch (err) {

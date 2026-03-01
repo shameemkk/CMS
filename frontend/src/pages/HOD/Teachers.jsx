@@ -12,6 +12,17 @@ const HodTeachers = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const { user } = useAuth();
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+  const parseResponseData = async (response) => {
+    const text = await response.text();
+    if (!text) return {};
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {};
+    }
+  };
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -41,7 +52,7 @@ const HodTeachers = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      const response = await fetch('/api/users/teacher', {
+      const response = await fetch(`${API_BASE_URL}/api/users/teacher`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -56,7 +67,7 @@ const HodTeachers = () => {
         setFormData({ fullName: '', email: '', phone: '', password: '', specialization: '' });
         fetchTeachers();
       } else {
-        const error = await response.json();
+        const error = await parseResponseData(response);
         toast.error(error.message || 'Failed to add teacher');
       }
     } catch (error) {
@@ -70,7 +81,7 @@ const HodTeachers = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      const response = await fetch(`/api/users/teacher/${selectedTeacher.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/teacher/${selectedTeacher.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -90,7 +101,7 @@ const HodTeachers = () => {
         setFormData({ fullName: '', email: '', phone: '', password: '', specialization: '' });
         fetchTeachers();
       } else {
-        const error = await response.json();
+        const error = await parseResponseData(response);
         toast.error(error.message || 'Failed to update teacher');
       }
     } catch (error) {
@@ -106,7 +117,7 @@ const HodTeachers = () => {
     }
 
     try {
-      const response = await fetch(`/api/users/teacher/${teacherId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/teacher/${teacherId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${api.token.get()}`
@@ -117,7 +128,7 @@ const HodTeachers = () => {
         toast.success('Teacher deleted successfully!');
         fetchTeachers();
       } else {
-        const error = await response.json();
+        const error = await parseResponseData(response);
         toast.error(error.message || 'Failed to delete teacher');
       }
     } catch (error) {

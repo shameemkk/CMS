@@ -30,6 +30,17 @@ const HodMarkAttendance = () => {
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [studentDetailModal, setStudentDetailModal] = useState(null);
   const { user } = useAuth();
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+  const parseResponseData = async (response) => {
+    const text = await response.text();
+    if (!text) return {};
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {};
+    }
+  };
 
   const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -46,14 +57,14 @@ const HodMarkAttendance = () => {
   const fetchAllTimetables = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/timetable?department=${user.department}`, {
+      const response = await fetch(`${API_BASE_URL}/api/timetable?department=${user.department}`, {
         headers: {
           'Authorization': `Bearer ${api.token.get()}`
         }
       });
       
       if (response.ok) {
-        const data = await response.json();
+        const data = await parseResponseData(response);
         setAllTimetables(data.data || []);
       }
     } catch (error) {

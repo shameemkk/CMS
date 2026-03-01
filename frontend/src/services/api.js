@@ -38,7 +38,18 @@ const request = async (path, options = {}) => {
   });
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
+  let data = {};
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = {
+        success: false,
+        message: 'Server returned an invalid response format.',
+      };
+    }
+  }
 
   if (!response.ok || data.success === false) {
     const message = data.message || response.statusText || 'Request failed';

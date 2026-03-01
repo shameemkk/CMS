@@ -28,6 +28,17 @@ const MarkAttendance = () => {
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [studentDetailModal, setStudentDetailModal] = useState(null);
   const { user } = useAuth();
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+  const parseResponseData = async (response) => {
+    const text = await response.text();
+    if (!text) return {};
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {};
+    }
+  };
 
   const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -40,14 +51,14 @@ const MarkAttendance = () => {
   const fetchDaySchedule = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/timetable/teacher/my-schedule', {
+      const response = await fetch(`${API_BASE_URL}/api/timetable/teacher/my-schedule`, {
         headers: {
           'Authorization': `Bearer ${api.token.get()}`
         }
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const data = await parseResponseData(response);
 
         // Get day of week for selected date
         const dayOfWeek = DAYS[new Date(selectedDate).getDay()];

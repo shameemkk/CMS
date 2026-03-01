@@ -10,6 +10,17 @@ const Timetable = () => {
   const [selectedSemester, setSelectedSemester] = useState(null);
   const [semesterFilter, setSemesterFilter] = useState('odd'); // 'odd', 'even'
   const { user } = useAuth();
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+  const parseResponseData = async (response) => {
+    const text = await response.text();
+    if (!text) return {};
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {};
+    }
+  };
 
   const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   const TIME_SLOTS = [
@@ -54,14 +65,14 @@ const Timetable = () => {
   const fetchStudentTimetable = async (department, semester) => {
     try {
       setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/timetable/${department}/${semester}`, {
+      const response = await fetch(`${API_BASE_URL}/api/timetable/${department}/${semester}`, {
         headers: {
           'Authorization': `Bearer ${api.token.get()}`
         }
       });
       
       if (response.ok) {
-        const data = await response.json();
+        const data = await parseResponseData(response);
         setTimetable(data.data);
       } else if (response.status === 404) {
         setTimetable(null);
@@ -77,14 +88,14 @@ const Timetable = () => {
   const fetchTeacherTimetable = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/timetable/teacher/my-schedule`, {
+      const response = await fetch(`${API_BASE_URL}/api/timetable/teacher/my-schedule`, {
         headers: {
           'Authorization': `Bearer ${api.token.get()}`
         }
       });
       
       if (response.ok) {
-        const data = await response.json();
+        const data = await parseResponseData(response);
         // Convert teacher schedule to timetable format
         if (data.data && data.data.length > 0) {
           // Keep the original structure with department and semester info
