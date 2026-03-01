@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  BookOpen,
+  Building2,
+  ChevronLeft,
+  ChevronRight,
+  GraduationCap,
+  Settings2,
+  ShieldCheck,
+} from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Subjects from '../shared/Subjects';
@@ -17,11 +26,11 @@ const AdminDashboard = () => {
   const [error, setError] = useState('');
 
   const menuItems = [
-    { id: 'approvals', label: 'User Approvals', icon: '✅' },
-    { id: 'subjects', label: 'Subjects', icon: '📖' },
-    { id: 'departments', label: 'Departments', icon: '🏢' },
-    { id: 'batches', label: 'Batches', icon: '🎓' },
-    { id: 'minor-major', label: 'Minor/Major Config', icon: '⚙️' },
+    { id: 'approvals', label: 'User Approvals', icon: ShieldCheck },
+    { id: 'subjects', label: 'Subjects', icon: BookOpen },
+    { id: 'departments', label: 'Departments', icon: Building2 },
+    { id: 'batches', label: 'Batches', icon: GraduationCap },
+    { id: 'minor-major', label: 'Minor/Major Config', icon: Settings2 },
   ];
 
   const loadPendingUsers = async () => {
@@ -142,8 +151,11 @@ const AdminDashboard = () => {
       default:
         return (
           <div className="bg-white rounded-xl shadow-md p-8 text-center">
-            <div className="text-6xl mb-4">
-              {menuItems.find((item) => item.id === activeMenu)?.icon}
+            <div className="text-4xl mb-4">
+              {(() => {
+                const Icon = menuItems.find((item) => item.id === activeMenu)?.icon;
+                return Icon ? <Icon className="w-10 h-10 mx-auto text-[#6e0718]" /> : null;
+              })()}
             </div>
             <h2 className="text-2xl font-bold text-[#6e0718] mb-2">
               {menuItems.find((item) => item.id === activeMenu)?.label}
@@ -156,10 +168,8 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
       <aside
-        className={`${sidebarOpen ? 'w-64' : 'w-20'
-          } bg-white shadow-lg transition-all duration-300 ease-in-out fixed h-screen overflow-y-auto`}
+        className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white shadow-lg transition-all duration-300 ease-in-out fixed h-screen overflow-y-auto`}
       >
         <div className="p-4">
           <div className="flex items-center justify-between mb-8">
@@ -170,33 +180,35 @@ const AdminDashboard = () => {
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
-              <span className="text-xl">{sidebarOpen ? '◀' : '▶'}</span>
+              {sidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
             </button>
           </div>
 
           <nav className="space-y-2">
-            {menuItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveMenu(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${activeMenu === item.id
-                    ? 'bg-[#6e0718] text-white shadow-md'
-                    : 'text-gray-700 hover:bg-gray-100'
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveMenu(item.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                    activeMenu === item.id
+                      ? 'bg-[#6e0718] text-white shadow-md'
+                      : 'text-gray-700 hover:bg-gray-100'
                   }`}
-              >
-                <span className="text-xl">{item.icon}</span>
-                {sidebarOpen && (
-                  <span className="font-medium">{item.label}</span>
-                )}
-              </button>
-            ))}
+                >
+                  <Icon className="w-5 h-5 shrink-0" />
+                  {sidebarOpen && (
+                    <span className="font-medium">{item.label}</span>
+                  )}
+                </button>
+              );
+            })}
           </nav>
         </div>
       </aside>
 
-      {/* Main Content */}
       <div className={`flex-1 ${sidebarOpen ? 'ml-64' : 'ml-20'} transition-all duration-300`}>
-        {/* Header */}
         <header className="bg-white shadow-md border-b border-gray-200 sticky top-0 z-10">
           <div className="px-6 py-4 flex justify-between items-center">
             <div className="flex items-center gap-4">
@@ -218,13 +230,11 @@ const AdminDashboard = () => {
                 className="bg-[#6e0718] text-white px-4 py-2 rounded-lg hover:bg-[#8a0a1f] transition-colors duration-200 font-semibold flex items-center gap-2"
               >
                 <span>Logout</span>
-                <span>🚪</span>
               </button>
             </div>
           </div>
         </header>
 
-        {/* Page Content */}
         <main className="p-6">
           {renderPage()}
         </main>

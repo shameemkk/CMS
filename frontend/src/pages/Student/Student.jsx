@@ -1,5 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Bell,
+  CalendarCheck,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  LayoutDashboard,
+  NotebookPen,
+  SquarePen,
+  UserCircle2,
+  Users,
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Dashboard from './Dashboard';
 import Profile from './Profile';
@@ -18,14 +30,14 @@ const Student = () => {
   const username = user?.fullName || 'Student';
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard Overview', icon: '📊' },
-    { id: 'profile', label: 'Profile', icon: '👤' },
-    { id: 'timetable', label: 'Time Table', icon: '📅' },
-    { id: 'exam', label: 'Exam', icon: '📝' },
-    { id: 'teachers', label: 'Teachers', icon: '👨‍🏫' },
-    { id: 'attendance', label: 'Attendance', icon: '✅' },
-    { id: 'assignments', label: 'Assignments', icon: '📚' },
-    { id: 'notifications', label: 'Notifications', icon: '🔔' },
+    { id: 'dashboard', label: 'Dashboard Overview', icon: LayoutDashboard },
+    { id: 'profile', label: 'Profile', icon: UserCircle2 },
+    { id: 'timetable', label: 'Time Table', icon: CalendarCheck },
+    { id: 'exam', label: 'Exam', icon: NotebookPen },
+    { id: 'teachers', label: 'Teachers', icon: Users },
+    { id: 'attendance', label: 'Attendance', icon: SquarePen },
+    { id: 'assignments', label: 'Assignments', icon: ClipboardList },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
   ];
 
   const handleLogout = () => {
@@ -54,8 +66,11 @@ const Student = () => {
       default:
         return (
           <div className="bg-white rounded-xl shadow-md p-8 text-center">
-            <div className="text-6xl mb-4">
-              {menuItems.find((item) => item.id === activeMenu)?.icon}
+            <div className="text-4xl mb-4">
+              {(() => {
+                const Icon = menuItems.find((item) => item.id === activeMenu)?.icon;
+                return Icon ? <Icon className="w-10 h-10 mx-auto text-[#6e0718]" /> : null;
+              })()}
             </div>
             <h2 className="text-2xl font-bold text-[#6e0718] mb-2">
               {menuItems.find((item) => item.id === activeMenu)?.label}
@@ -68,7 +83,6 @@ const Student = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
       <aside
         className={`${
           sidebarOpen ? 'w-64' : 'w-20'
@@ -83,34 +97,35 @@ const Student = () => {
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
-              <span className="text-xl">{sidebarOpen ? '◀' : '▶'}</span>
+              {sidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
             </button>
           </div>
 
           <nav className="space-y-2">
-            {menuItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveMenu(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                  activeMenu === item.id
-                    ? 'bg-[#6e0718] text-white shadow-md'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <span className="text-xl">{item.icon}</span>
-                {sidebarOpen && (
-                  <span className="font-medium">{item.label}</span>
-                )}
-              </button>
-            ))}
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveMenu(item.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                    activeMenu === item.id
+                      ? 'bg-[#6e0718] text-white shadow-md'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <Icon className="w-5 h-5 shrink-0" />
+                  {sidebarOpen && (
+                    <span className="font-medium">{item.label}</span>
+                  )}
+                </button>
+              );
+            })}
           </nav>
         </div>
       </aside>
 
-      {/* Main Content */}
       <div className={`flex-1 ${sidebarOpen ? 'ml-64' : 'ml-20'} transition-all duration-300`}>
-        {/* Header */}
         <header className="bg-white shadow-md border-b border-gray-200 sticky top-0 z-10">
           <div className="px-6 py-4 flex justify-between items-center">
             <div className="flex items-center gap-4">
@@ -132,13 +147,11 @@ const Student = () => {
                 className="bg-[#6e0718] text-white px-4 py-2 rounded-lg hover:bg-[#8a0a1f] transition-colors duration-200 font-semibold flex items-center gap-2"
               >
                 <span>Logout</span>
-                <span>🚪</span>
               </button>
             </div>
           </div>
         </header>
 
-        {/* Page Content */}
         <main className="p-6">
           {renderPage()}
         </main>
