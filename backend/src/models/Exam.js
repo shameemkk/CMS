@@ -35,7 +35,14 @@ const examSchema = new mongoose.Schema(
         },
         time: {
           type: String,
-          required: true,
+          trim: true,
+        },
+        startTime: {
+          type: String,
+          trim: true,
+        },
+        endTime: {
+          type: String,
           trim: true,
         },
         venue: {
@@ -68,5 +75,4 @@ const examSchema = new mongoose.Schema(
 const Exam = mongoose.model('Exam', examSchema);
 
 export default Exam;
-
 

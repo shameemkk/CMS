@@ -9,6 +9,24 @@ const gradeFromMarks = (marks) => {
   return 'C';
 };
 
+const formatTime = (timeValue) => {
+  if (!timeValue || typeof timeValue !== 'string') return '';
+  const match = timeValue.match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  if (!match) return timeValue;
+  const hours = parseInt(match[1], 10);
+  const minutes = match[2];
+  const suffix = hours >= 12 ? 'PM' : 'AM';
+  const normalizedHours = hours % 12 || 12;
+  return `${normalizedHours}:${minutes} ${suffix}`;
+};
+
+const formatSubjectTimeRange = (subject) => {
+  if (subject?.startTime && subject?.endTime) {
+    return `${formatTime(subject.startTime)} - ${formatTime(subject.endTime)}`;
+  }
+  return subject?.time || 'Not specified';
+};
+
 const Exam = () => {
   const [examSubMenu, setExamSubMenu] = useState('upcoming');
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,7 +46,7 @@ const Exam = () => {
               id: `${exam._id}-${subject.subjectName}`,
               subject: subject.subjectName,
               date: subject.date,
-              time: subject.time,
+              time: formatSubjectTimeRange(subject),
               venue: subject.venue || 'TBA',
               examName: exam.examName,
             }))

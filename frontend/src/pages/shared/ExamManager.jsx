@@ -3,8 +3,61 @@ import { Eye } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
-const emptySubject = { subjectId: '', date: '', time: '', venue: '' };
+const emptySubject = { subjectId: '', date: '', startTime: '', endTime: '', venue: '' };
 const emptyExam = { examName: '', semester: '', startDate: '', endDate: '', subjects: [emptySubject] };
+
+const formatTime = (timeValue) => {
+  if (!timeValue || typeof timeValue !== 'string') return '';
+  const match = timeValue.match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  if (!match) return timeValue;
+  const hours = parseInt(match[1], 10);
+  const minutes = match[2];
+  const suffix = hours >= 12 ? 'PM' : 'AM';
+  const normalizedHours = hours % 12 || 12;
+  return `${normalizedHours}:${minutes} ${suffix}`;
+};
+
+const normalizeTimeToken = (value) => {
+  if (!value || typeof value !== 'string') return '';
+  const trimmed = value.trim().toUpperCase();
+
+  const match24 = trimmed.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+  if (match24) {
+    return `${match24[1].padStart(2, '0')}:${match24[2]}`;
+  }
+
+  const match12 = trimmed.match(/^(\d{1,2}):([0-5]\d)\s*(AM|PM)$/);
+  if (!match12) return '';
+
+  const rawHour = parseInt(match12[1], 10);
+  const minutes = match12[2];
+  const suffix = match12[3];
+  if (rawHour < 1 || rawHour > 12) return '';
+  const hour24 = suffix === 'PM' && rawHour !== 12 ? rawHour + 12 : suffix === 'AM' && rawHour === 12 ? 0 : rawHour;
+  return `${hour24.toString().padStart(2, '0')}:${minutes}`;
+};
+
+const parseLegacyTimeRange = (timeRange) => {
+  if (!timeRange || typeof timeRange !== 'string') {
+    return { startTime: '', endTime: '' };
+  }
+
+  const parts = timeRange.split('-');
+  if (parts.length !== 2) {
+    return { startTime: '', endTime: '' };
+  }
+
+  const startTime = normalizeTimeToken(parts[0]);
+  const endTime = normalizeTimeToken(parts[1]);
+  return { startTime, endTime };
+};
+
+const formatSubjectTimeRange = (subject) => {
+  if (subject?.startTime && subject?.endTime) {
+    return `${formatTime(subject.startTime)} - ${formatTime(subject.endTime)}`;
+  }
+  return subject?.time || 'Not specified';
+};
 
 const ExamManager = () => {
   const { user } = useAuth();
@@ -96,12 +149,16 @@ const ExamManager = () => {
       semester: exam.semester?.toString() || '',
       startDate: exam.examSchedule?.startDate ? exam.examSchedule.startDate.split('T')[0] : '',
       endDate: exam.examSchedule?.endDate ? exam.examSchedule.endDate.split('T')[0] : '',
-      subjects: (exam.subjects || []).map((subject) => ({
-        subjectId: subject.subjectId || subject.subjectName || '',
-        date: subject.date ? subject.date.split('T')[0] : '',
-        time: subject.time || '',
-        venue: subject.venue || '',
-      })),
+      subjects: (exam.subjects || []).map((subject) => {
+        const parsedLegacyTime = parseLegacyTimeRange(subject.time);
+        return {
+          subjectId: subject.subjectId || subject.subjectName || '',
+          date: subject.date ? subject.date.split('T')[0] : '',
+          startTime: subject.startTime || parsedLegacyTime.startTime,
+          endTime: subject.endTime || parsedLegacyTime.endTime,
+          venue: subject.venue || '',
+        };
+      }),
     });
     setShowEditModal(true);
   };
@@ -128,6 +185,21 @@ const ExamManager = () => {
       setError('Exam name, semester, and at least one subject are required.');
       return;
     }
+
+    const hasIncompleteSubject = form.subjects.some(
+      (subject) => !subject.subjectId || !subject.date || !subject.startTime || !subject.endTime
+    );
+    if (hasIncompleteSubject) {
+      setError('Each subject must include subject, date, start time, and end time.');
+      return;
+    }
+
+    const hasInvalidRange = form.subjects.some((subject) => subject.startTime >= subject.endTime);
+    if (hasInvalidRange) {
+      setError('End time must be later than start time for each subject.');
+      return;
+    }
+
     try {
       setLoading(true);
       const payload = {
@@ -139,7 +211,9 @@ const ExamManager = () => {
             subjectId: subject.subjectId,
             subjectName: subjectData?.name || '',
             date: subject.date,
-            time: subject.time,
+            startTime: subject.startTime,
+            endTime: subject.endTime,
+            time: `${formatTime(subject.startTime)} - ${formatTime(subject.endTime)}`,
             venue: subject.venue,
           };
         }),
@@ -253,7 +327,7 @@ const ExamManager = () => {
             )}
             <div className="space-y-4">
               {form.subjects.map((subject, index) => (
-                <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end p-4 bg-gray-50 rounded-lg">
+                <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end p-4 bg-gray-50 rounded-lg">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Subject *</label>
                     <select
@@ -282,11 +356,21 @@ const ExamManager = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Time *</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Start Time *</label>
                     <input
-                      value={subject.time}
-                      onChange={(e) => handleSubjectChange(index, 'time', e.target.value)}
-                      placeholder="09:00 AM - 12:00 PM"
+                      type="time"
+                      value={subject.startTime}
+                      onChange={(e) => handleSubjectChange(index, 'startTime', e.target.value)}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">End Time *</label>
+                    <input
+                      type="time"
+                      value={subject.endTime}
+                      onChange={(e) => handleSubjectChange(index, 'endTime', e.target.value)}
                       required
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
                     />
@@ -411,7 +495,7 @@ const ExamManager = () => {
                   )}
                   <div className="space-y-4">
                     {form.subjects.map((subject, index) => (
-                      <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end p-4 bg-gray-50 rounded-lg">
+                      <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end p-4 bg-gray-50 rounded-lg">
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-1">Subject *</label>
                           <select
@@ -439,11 +523,21 @@ const ExamManager = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Time *</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Start Time *</label>
                           <input
-                            value={subject.time}
-                            onChange={(e) => handleSubjectChange(index, 'time', e.target.value)}
-                            placeholder="09:00 AM - 12:00 PM"
+                            type="time"
+                            value={subject.startTime}
+                            onChange={(e) => handleSubjectChange(index, 'startTime', e.target.value)}
+                            required
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">End Time *</label>
+                          <input
+                            type="time"
+                            value={subject.endTime}
+                            onChange={(e) => handleSubjectChange(index, 'endTime', e.target.value)}
                             required
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
                           />
@@ -603,7 +697,7 @@ const ExamManager = () => {
                                   : 'Not specified'}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-600">
-                                {subject.time || 'Not specified'}
+                                {formatSubjectTimeRange(subject)}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-600">
                                 {subject.venue || 'Not specified'}
