@@ -133,6 +133,15 @@ export const api = {
     update: (id, payload) => request(`/api/batches/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
     remove: (id) => request(`/api/batches/${id}`, { method: 'DELETE' }),
   },
+  minorMajor: {
+    list: (params) => request(`/api/minor-major${buildQuery(params)}`),
+    getById: (id) => request(`/api/minor-major/${id}`),
+    getByDepartment: (department) => request(`/api/minor-major/department/${department}`),
+    create: (payload) => request('/api/minor-major', { method: 'POST', body: JSON.stringify(payload) }),
+    update: (id, payload) => request(`/api/minor-major/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+    remove: (id) => request(`/api/minor-major/${id}`, { method: 'DELETE' }),
+    toggle: (id) => request(`/api/minor-major/${id}/toggle`, { method: 'PATCH' }),
+  },
   token: {
     get: getToken,
     set: setToken,

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Subject from '../models/Subject.js';
 import Department from '../models/Department.js';
+import MinorMajor from '../models/MinorMajor.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -14,6 +15,7 @@ const seedData = async () => {
     await Department.deleteMany({});
     await User.deleteMany({});
     await Subject.deleteMany({});
+    await MinorMajor.deleteMany({});
     console.log('✓ Cleared existing data');
 
     // Create Admin user first (needed for createdBy references)
@@ -360,6 +362,50 @@ const seedData = async () => {
 
     console.log(`✓ ${createdSubjects.length} BCA Subjects created successfully with assigned teachers`);
 
+    // Create MinorMajor configurations
+    const minorMajorConfigs = [
+      {
+        department: 'BCA',
+        subjectType: 'minor',
+        prioritySlot: 2, // 2nd period (10:30-11:20)
+        description: 'Minor subjects are scheduled in 2nd period for BCA department',
+        isActive: true,
+        createdBy: adminUser._id
+      },
+      {
+        department: 'BCA',
+        subjectType: 'major',
+        prioritySlot: 2, // 2nd period (10:30-11:20)
+        description: 'Major subjects are scheduled in 2nd period for BCA department',
+        isActive: true,
+        createdBy: adminUser._id
+      },
+      {
+        department: 'BCOM',
+        subjectType: 'minor',
+        prioritySlot: 3, // 3rd period (11:30-12:30)
+        description: 'Minor subjects are scheduled in 3rd period for BCOM department',
+        isActive: true,
+        createdBy: adminUser._id
+      },
+      {
+        department: 'BCOM',
+        subjectType: 'major',
+        prioritySlot: 3, // 3rd period (11:30-12:30)
+        description: 'Major subjects are scheduled in 3rd period for BCOM department',
+        isActive: true,
+        createdBy: adminUser._id
+      }
+    ];
+
+    const createdMinorMajorConfigs = [];
+    for (const configData of minorMajorConfigs) {
+      const config = new MinorMajor(configData);
+      await config.save();
+      createdMinorMajorConfigs.push(config);
+    }
+    console.log(`✓ ${createdMinorMajorConfigs.length} MinorMajor configurations created successfully`);
+
     // Summary
     console.log('\n🎉 Data seeding completed successfully!');
     console.log(`📊 Summary:`);
@@ -369,6 +415,7 @@ const seedData = async () => {
     console.log(`   - Teachers: ${createdTeachers.length}`);
     console.log(`   - Students: ${bcaStudentsData.length}`);
     console.log(`   - Subjects: ${createdSubjects.length}`);
+    console.log(`   - MinorMajor Configs: ${createdMinorMajorConfigs.length}`);
 
     // Validation check
     const subjectsWithoutTeachers = createdSubjects.filter(s => !s.assignedTeacher);

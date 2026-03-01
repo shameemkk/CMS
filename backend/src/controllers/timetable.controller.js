@@ -21,7 +21,13 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const generateTimetable = asyncHandler(async (req, res) => {
   const { department, semester } = req.body;
 
-  console.log('🔍 Timetable generation request:', { department, semester, userRole: req.user.role, userDept: req.user.department });
+  console.log('🔍 Timetable generation request:', { 
+    department, 
+    semester, 
+    userRole: req.user.role, 
+    userDept: req.user.department,
+    departmentMatch: req.user.department === department 
+  });
 
   if (!department || !semester) {
     throw new ApiError(400, 'Department and semester are required');
@@ -116,7 +122,25 @@ const generateTimetable = asyncHandler(async (req, res) => {
   } catch (error) {
     console.error('❌ Timetable generation error:', error.message);
     console.error('❌ Full error:', error);
-    throw new ApiError(500, `Failed to generate timetable: ${error.message}`);
+    
+    // Provide more specific error messages based on the error type
+    let errorMessage = error.message;
+    
+    if (error.message.includes('already exists')) {
+      errorMessage = 'A timetable already exists for this department and semester. Please delete the existing one first or edit it instead.';
+    } else if (error.message.includes('No subjects found')) {
+      errorMessage = 'No active subjects found for this department and semester. Please add subjects first before generating a timetable.';
+    } else if (error.message.includes("don't have assigned teachers")) {
+      errorMessage = 'Some subjects do not have assigned teachers. Please assign teachers to all subjects before generating a timetable.';
+    } else if (error.message.includes('Teacher conflict')) {
+      errorMessage = 'Teacher scheduling conflict detected. Some teachers are already scheduled for other semesters at the same time.';
+    } else if (error.message.includes('validation failed')) {
+      errorMessage = 'Invalid data provided. Please check all required fields and try again.';
+    } else if (!errorMessage || errorMessage === 'undefined') {
+      errorMessage = 'An unexpected error occurred while generating the timetable. Please try again.';
+    }
+    
+    throw new ApiError(500, errorMessage);
   }
 });
 

@@ -17,6 +17,7 @@ import dashboardRoutes from './routes/dashboard.routes.js';
 import subjectRoutes from './routes/subject.routes.js';
 import departmentRoutes from './routes/department.routes.js';
 import batchRoutes from './routes/batch.routes.js';
+import minorMajorRoutes from './routes/minorMajor.routes.js';
 
 const app = express();
 
@@ -58,6 +59,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/batches', batchRoutes);
+app.use('/api/minor-major', minorMajorRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -17,6 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 const TimetableManagement = () => {
   const [timetables, setTimetables] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [selectedTimetable, setSelectedTimetable] = useState(null);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -31,9 +32,19 @@ const TimetableManagement = () => {
   const { user } = useAuth();
 
   const [generateForm, setGenerateForm] = useState({
-    department: user?.department || 'BCA',
+    department: 'BCA', // Default value, will be updated when user loads
     semester: 1
   });
+
+  // Update generateForm when user data loads
+  useEffect(() => {
+    if (user?.department) {
+      setGenerateForm(prev => ({
+        ...prev,
+        department: user.department
+      }));
+    }
+  }, [user?.department]);
 
   const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   const TIME_SLOTS = [
@@ -114,9 +125,19 @@ const TimetableManagement = () => {
 
   const handleGenerateTimetable = async (e) => {
     e.preventDefault();
+    setError(''); // Clear previous errors
+    
     try {
       setLoading(true);
-      console.log('🔍 Generating timetable with:', generateForm);
+      
+      // For HODs, always use their department regardless of form value
+      const requestData = {
+        department: user?.role === 'hod' ? user.department : generateForm.department,
+        semester: generateForm.semester
+      };
+      
+      console.log('🔍 Generating timetable with:', requestData);
+      console.log('👤 User info:', { role: user?.role, department: user?.department });
       
       const response = await fetch('/api/timetable/generate', {
         method: 'POST',
@@ -124,7 +145,7 @@ const TimetableManagement = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${api.token.get()}`
         },
-        body: JSON.stringify(generateForm)
+        body: JSON.stringify(requestData)
       });
 
       const responseData = await response.json();
@@ -133,15 +154,46 @@ const TimetableManagement = () => {
       if (response.ok) {
         toast.success('Timetable generated successfully!');
         setShowGenerateModal(false);
+        setError(''); // Clear any errors
         fetchTimetables();
-        setGenerateForm({ department: departments[0]?.code || 'BCA', semester: 1 });
+        setGenerateForm({ department: user?.department || 'BCA', semester: 1 });
       } else {
         console.error('❌ Error response:', responseData);
-        toast.error(responseData.message || 'Failed to generate timetable');
+        
+        // Show detailed error message from backend
+        let errorMessage = 'Failed to generate timetable';
+        
+        if (responseData.message) {
+          errorMessage = responseData.message;
+        } else if (responseData.error) {
+          errorMessage = responseData.error;
+        } else if (response.status === 400) {
+          errorMessage = 'Invalid request. Please check your input and try again.';
+        } else if (response.status === 403) {
+          errorMessage = 'You do not have permission to generate timetables for this department.';
+        } else if (response.status === 404) {
+          errorMessage = 'No subjects found for the selected department and semester.';
+        } else if (response.status === 500) {
+          errorMessage = 'Server error occurred. Please try again later.';
+        }
+        
+        setError(errorMessage); // Set error for modal display
+        toast.error(errorMessage);
       }
     } catch (error) {
       console.error('❌ Network error:', error);
-      toast.error('Failed to generate timetable');
+      
+      // Handle network errors
+      let networkErrorMessage = 'Network error occurred';
+      
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        networkErrorMessage = 'Unable to connect to server. Please check your internet connection.';
+      } else if (error.message) {
+        networkErrorMessage = `Network error: ${error.message}`;
+      }
+      
+      setError(networkErrorMessage); // Set error for modal display
+      toast.error(networkErrorMessage);
     } finally {
       setLoading(false);
     }
@@ -492,7 +544,10 @@ const TimetableManagement = () => {
           <p className="text-gray-600">Generate and manage class timetables</p>
         </div>
         <button
-          onClick={() => setShowGenerateModal(true)}
+          onClick={() => {
+          setShowGenerateModal(true);
+          setError(''); // Clear any previous errors
+        }}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
@@ -666,10 +721,40 @@ const TimetableManagement = () => {
                   </select>
                 </div>
 
+                {/* Error Display */}
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p>{error}</p>
+                      </div>
+                      <div className="ml-auto pl-3">
+                        <button
+                          type="button"
+                          onClick={() => setError('')}
+                          className="inline-flex text-red-400 hover:text-red-600"
+                        >
+                          <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex justify-end space-x-3">
                   <button
                     type="button"
-                    onClick={() => setShowGenerateModal(false)}
+                    onClick={() => {
+                      setShowGenerateModal(false);
+                      setError(''); // Clear errors when closing
+                    }}
                     className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
                   >
                     Cancel
