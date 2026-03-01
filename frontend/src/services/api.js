@@ -142,6 +142,7 @@ export const api = {
     getById: (id) => request(`/api/batches/${id}`),
     create: (payload) => request('/api/batches', { method: 'POST', body: JSON.stringify(payload) }),
     update: (id, payload) => request(`/api/batches/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+    assignTutor: (id, tutorId) => request(`/api/batches/${id}/tutor`, { method: 'PATCH', body: JSON.stringify({ tutorId: tutorId || null }) }),
     remove: (id) => request(`/api/batches/${id}`, { method: 'DELETE' }),
   },
   minorMajor: {

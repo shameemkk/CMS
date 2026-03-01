@@ -1,4 +1,5 @@
 import Batch from '../models/Batch.js';
+import User from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -12,12 +13,36 @@ const buildBatchCode = (department, startDate, endDate) => {
   return `${department}- ${startYear}-${endYearShort}`;
 };
 
+const normalizeDepartment = (department = '') => department.trim().toUpperCase();
+
+const serializeCreatedBy = async (createdBy) => {
+  if (!createdBy) return null;
+
+  if (createdBy === 'admin') {
+    return {
+      _id: 'admin',
+      fullName: 'Admin',
+      email: 'admin@cms.com',
+    };
+  }
+
+  return User.findById(createdBy).select('fullName email');
+};
+
+const serializeBatch = async (batchDoc) => {
+  const batch = batchDoc.toObject();
+  batch.createdBy = await serializeCreatedBy(batch.createdBy);
+  return batch;
+};
+
 // Create batch
 const createBatch = asyncHandler(async (req, res) => {
   const { department, startDate, endDate } = req.body;
+  const requesterRole = req.user?.role || req.userRole;
+  const requesterDepartment = normalizeDepartment(req.user?.department || req.userDepartment || '');
 
   // Validate required fields
-  if (!department || !startDate || !endDate) {
+  if (!startDate || !endDate) {
     throw new ApiError(400, 'Department, start date, and end date are required');
   }
 
@@ -32,7 +57,18 @@ const createBatch = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'End date must be greater than start date');
   }
 
-  const normalizedDepartment = department.trim().toUpperCase();
+  let normalizedDepartment = normalizeDepartment(department || '');
+
+  if (requesterRole === 'hod') {
+    if (normalizedDepartment && normalizedDepartment !== requesterDepartment) {
+      throw new ApiError(403, 'You can only create batches for your own department');
+    }
+    normalizedDepartment = requesterDepartment;
+  }
+
+  if (!normalizedDepartment) {
+    throw new ApiError(400, 'Department, start date, and end date are required');
+  }
 
   // Generate batch code
   const batchCode = buildBatchCode(normalizedDepartment, parsedStartDate, parsedEndDate);
@@ -52,8 +88,10 @@ const createBatch = asyncHandler(async (req, res) => {
     createdBy: req.user._id,
   });
 
+  const serializedBatch = await serializeBatch(batch);
+
   res.status(201).json(
-    new ApiResponse(201, batch, 'Batch created successfully')
+    new ApiResponse(201, serializedBatch, 'Batch created successfully')
   );
 });
 
@@ -69,26 +107,11 @@ const getAllBatches = asyncHandler(async (req, res) => {
     filter.department = department.toUpperCase();
   }
 
-  const batches = await Batch.find(filter).sort({ createdAt: -1 });
+  const batches = await Batch.find(filter)
+    .populate('tutor', 'fullName department specialization')
+    .sort({ createdAt: -1 });
 
-  // Manually populate createdBy for non-admin users
-  const populatedBatches = await Promise.all(
-    batches.map(async (batch) => {
-      const batchObj = batch.toObject();
-      if (batchObj.createdBy === 'admin') {
-        batchObj.createdBy = {
-          _id: 'admin',
-          fullName: 'Admin',
-          email: 'admin@cms.com',
-        };
-      } else if (batchObj.createdBy) {
-        const User = (await import('../models/User.js')).default;
-        const user = await User.findById(batchObj.createdBy).select('fullName email');
-        batchObj.createdBy = user;
-      }
-      return batchObj;
-    })
-  );
+  const populatedBatches = await Promise.all(batches.map(serializeBatch));
 
   res.status(200).json(
     new ApiResponse(200, populatedBatches, 'Batches retrieved successfully')
@@ -99,26 +122,13 @@ const getAllBatches = asyncHandler(async (req, res) => {
 const getBatchById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const batch = await Batch.findById(id);
+  const batch = await Batch.findById(id).populate('tutor', 'fullName department specialization');
 
   if (!batch) {
     throw new ApiError(404, 'Batch not found');
   }
 
-  const batchObj = batch.toObject();
-  
-  // Handle admin createdBy
-  if (batchObj.createdBy === 'admin') {
-    batchObj.createdBy = {
-      _id: 'admin',
-      fullName: 'Admin',
-      email: 'admin@cms.com',
-    };
-  } else if (batchObj.createdBy) {
-    const User = (await import('../models/User.js')).default;
-    const user = await User.findById(batchObj.createdBy).select('fullName email');
-    batchObj.createdBy = user;
-  }
+  const batchObj = await serializeBatch(batch);
 
   res.status(200).json(
     new ApiResponse(200, batchObj, 'Batch retrieved successfully')
@@ -129,14 +139,26 @@ const getBatchById = asyncHandler(async (req, res) => {
 const updateBatch = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { department, startDate, endDate, status } = req.body;
+  const requesterRole = req.user?.role || req.userRole;
+  const requesterDepartment = normalizeDepartment(req.user?.department || req.userDepartment || '');
 
   const batch = await Batch.findById(id);
   if (!batch) {
     throw new ApiError(404, 'Batch not found');
   }
 
+  if (requesterRole === 'hod' && batch.department !== requesterDepartment) {
+    throw new ApiError(403, 'You can only update batches in your own department');
+  }
+
   // Update fields if provided
-  if (department) batch.department = department.trim().toUpperCase();
+  if (department) {
+    const normalizedDepartment = normalizeDepartment(department);
+    if (requesterRole === 'hod' && normalizedDepartment !== requesterDepartment) {
+      throw new ApiError(403, 'You can only set your own department for batches');
+    }
+    batch.department = normalizedDepartment;
+  }
   if (startDate) {
     const parsedStartDate = new Date(startDate);
     if (Number.isNaN(parsedStartDate.getTime())) {
@@ -163,23 +185,60 @@ const updateBatch = asyncHandler(async (req, res) => {
 
   await batch.save();
 
-  const batchObj = batch.toObject();
-  
-  // Handle admin createdBy
-  if (batchObj.createdBy === 'admin') {
-    batchObj.createdBy = {
-      _id: 'admin',
-      fullName: 'Admin',
-      email: 'admin@cms.com',
-    };
-  } else if (batchObj.createdBy) {
-    const User = (await import('../models/User.js')).default;
-    const user = await User.findById(batchObj.createdBy).select('fullName email');
-    batchObj.createdBy = user;
+  const updatedBatch = await Batch.findById(batch._id).populate(
+    'tutor',
+    'fullName department specialization'
+  );
+  const batchObj = await serializeBatch(updatedBatch);
+
+  res.status(200).json(new ApiResponse(200, batchObj, 'Batch updated successfully'));
+});
+
+// Assign or clear batch tutor
+const assignBatchTutor = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { tutorId } = req.body;
+  const requesterRole = req.user?.role || req.userRole;
+  const requesterDepartment = normalizeDepartment(req.user?.department || req.userDepartment || '');
+
+  const batch = await Batch.findById(id);
+  if (!batch) {
+    throw new ApiError(404, 'Batch not found');
   }
 
+  if (requesterRole === 'hod' && batch.department !== requesterDepartment) {
+    throw new ApiError(403, 'You can only assign tutors to batches in your own department');
+  }
+
+  if (!tutorId) {
+    batch.tutor = null;
+  } else {
+    const tutor = await User.findById(tutorId).select('role department status');
+    if (!tutor || tutor.role !== 'teacher') {
+      throw new ApiError(400, 'Selected user is not a valid teacher');
+    }
+
+    if (tutor.status !== 'approved') {
+      throw new ApiError(400, 'Only approved teachers can be assigned as tutors');
+    }
+
+    if (normalizeDepartment(tutor.department) !== batch.department) {
+      throw new ApiError(400, 'Teacher must belong to the same department as the batch');
+    }
+
+    batch.tutor = tutor._id;
+  }
+
+  await batch.save();
+
+  const updatedBatch = await Batch.findById(batch._id).populate(
+    'tutor',
+    'fullName department specialization'
+  );
+  const batchObj = await serializeBatch(updatedBatch);
+
   res.status(200).json(
-    new ApiResponse(200, batchObj, 'Batch updated successfully')
+    new ApiResponse(200, batchObj, 'Batch tutor updated successfully')
   );
 });
 
@@ -204,5 +263,6 @@ export {
   getAllBatches,
   getBatchById,
   updateBatch,
+  assignBatchTutor,
   deleteBatch,
 };
