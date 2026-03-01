@@ -91,7 +91,7 @@ const generateTimetable = asyncHandler(async (req, res) => {
     const existingTimetables = await Timetable.find({
       department,
       semester: { $in: activeSemesters, $ne: semester },
-      status: 'active'
+      status: { $in: ['active', 'draft'] }
     }).populate('timeSlots.teacher');
 
     // Fetch active MinorMajor configurations for this department
