@@ -1,5 +1,6 @@
 import Timetable from '../models/TimeTable.js';
 import Subject from '../models/Subject.js';
+import MinorMajor from '../models/MinorMajor.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -93,8 +94,15 @@ const generateTimetable = asyncHandler(async (req, res) => {
       status: 'active'
     }).populate('timeSlots.teacher');
 
-    // Generate timetable slots with conflict checking
-    const timeSlots = generateTimeSlots(subjects, existingTimetables);
+    // Fetch active MinorMajor configurations for this department
+    const minorMajorConfigs = await MinorMajor.find({ department, isActive: true });
+    console.log('📊 MinorMajor configs found:', minorMajorConfigs.length, minorMajorConfigs.map(c => ({
+      subjectType: c.subjectType,
+      prioritySlot: c.prioritySlot
+    })));
+
+    // Generate timetable slots with conflict checking and MinorMajor priority slots
+    const timeSlots = generateTimeSlots(subjects, existingTimetables, minorMajorConfigs);
     console.log('⏰ Generated time slots:', timeSlots.length);
 
     // Create new timetable
@@ -145,7 +153,7 @@ const generateTimetable = asyncHandler(async (req, res) => {
 });
 
 // Helper function to generate time slots
-function generateTimeSlots(subjects, existingTimetables = []) {
+function generateTimeSlots(subjects, existingTimetables = [], minorMajorConfigs = []) {
   const timeSlots = [];
   const teacherSchedule = new Map(); // Track teacher availability
   const subjectHoursScheduled = new Map(); // Track hours scheduled per subject
@@ -170,16 +178,34 @@ function generateTimeSlots(subjects, existingTimetables = []) {
           const teacherId = slot.teacher._id.toString();
           const slotKey = `${slot.day}-${slot.startTime}-${slot.endTime}`;
 
-          // Initialize teacher schedule if not exists
           if (!teacherSchedule.has(teacherId)) {
             teacherSchedule.set(teacherId, new Set());
           }
-
-          // Mark this slot as occupied for this teacher
           teacherSchedule.get(teacherId).add(slotKey);
         }
       });
     }
+  });
+
+  // Build priority slot map: slotIndex (0-based) → config[]
+  // MinorMajor.prioritySlot is 1-based, so subtract 1
+  const prioritySlotMap = new Map();
+  minorMajorConfigs.forEach(config => {
+    const slotIndex = config.prioritySlot - 1;
+    if (!prioritySlotMap.has(slotIndex)) {
+      prioritySlotMap.set(slotIndex, []);
+    }
+    prioritySlotMap.get(slotIndex).push(config);
+  });
+
+  // Set of subject types that have a MinorMajor config (handled by priority slots)
+  const configuredSubjectTypes = new Set(minorMajorConfigs.map(c => c.subjectType));
+
+  // Pre-check: does the configured subject type exist among this semester's subjects?
+  const subjectTypeExistsMap = new Map();
+  minorMajorConfigs.forEach(config => {
+    const exists = subjects.some(s => s.subjectType === config.subjectType);
+    subjectTypeExistsMap.set(config.subjectType, exists);
   });
 
   // Generate slots for each day
@@ -187,37 +213,89 @@ function generateTimeSlots(subjects, existingTimetables = []) {
     for (let slotIndex = 0; slotIndex < TIME_SLOTS.length; slotIndex++) {
       const timeSlot = TIME_SLOTS[slotIndex];
 
-      // Find a suitable subject for this slot
+      // ── Priority slot handling (MinorMajor config) ──────────────────────────
+      if (prioritySlotMap.has(slotIndex)) {
+        const configs = prioritySlotMap.get(slotIndex);
+
+        for (const config of configs) {
+          const { subjectType } = config;
+          const subjectExistsInSemester = subjectTypeExistsMap.get(subjectType);
+
+          if (!subjectExistsInSemester) {
+            // Subject type not found in semester subjects → reserve the slot
+            timeSlots.push({
+              day,
+              startTime: timeSlot.startTime,
+              endTime: timeSlot.endTime,
+              isReserved: true,
+              reservedLabel: `Reserved for ${subjectType.toUpperCase()}`,
+              room: 'TBA',
+            });
+          } else {
+            // Subject type exists → try to schedule a subject of that type
+            const prioritySubjects = subjects.filter(s => s.subjectType === subjectType);
+            const suitableSubject = findSuitableSubjectOfType(
+              prioritySubjects,
+              subjectHoursScheduled,
+              teacherSchedule,
+              day,
+              timeSlot
+            );
+
+            if (suitableSubject) {
+              const slotKey = `${day}-${timeSlot.startTime}-${timeSlot.endTime}`;
+              const subjectId = suitableSubject._id.toString();
+              const teacherId = suitableSubject.assignedTeacher._id.toString();
+
+              timeSlots.push({
+                day,
+                startTime: timeSlot.startTime,
+                endTime: timeSlot.endTime,
+                subject: suitableSubject._id,
+                teacher: suitableSubject.assignedTeacher._id,
+                subjectType: suitableSubject.subjectType,
+                room: generateRoomNumber(suitableSubject.subjectType),
+              });
+
+              subjectHoursScheduled.set(subjectId, subjectHoursScheduled.get(subjectId) + 1);
+              if (!teacherSchedule.has(teacherId)) {
+                teacherSchedule.set(teacherId, new Set());
+              }
+              teacherSchedule.get(teacherId).add(slotKey);
+            }
+            // If hours exhausted or teacher conflict, skip this slot for that day
+          }
+        }
+        continue; // Do not run normal scheduling for priority slot indices
+      }
+
+      // ── Normal slot handling ─────────────────────────────────────────────────
       const suitableSubject = findSuitableSubject(
         subjects,
         subjectHoursScheduled,
         teacherSchedule,
         day,
         slotIndex,
-        timeSlot
+        timeSlot,
+        configuredSubjectTypes
       );
 
       if (suitableSubject) {
-        const slot = {
+        const slotKey = `${day}-${timeSlot.startTime}-${timeSlot.endTime}`;
+        const subjectId = suitableSubject._id.toString();
+        const teacherId = suitableSubject.assignedTeacher._id.toString();
+
+        timeSlots.push({
           day,
           startTime: timeSlot.startTime,
           endTime: timeSlot.endTime,
           subject: suitableSubject._id,
           teacher: suitableSubject.assignedTeacher._id,
           subjectType: suitableSubject.subjectType,
-          room: generateRoomNumber(suitableSubject.subjectType)
-        };
-
-        timeSlots.push(slot);
-
-        // Update tracking
-        const subjectId = suitableSubject._id.toString();
-        const teacherId = suitableSubject.assignedTeacher._id.toString();
+          room: generateRoomNumber(suitableSubject.subjectType),
+        });
 
         subjectHoursScheduled.set(subjectId, subjectHoursScheduled.get(subjectId) + 1);
-
-        // Mark this specific time slot as occupied
-        const slotKey = `${day}-${timeSlot.startTime}-${timeSlot.endTime}`;
         teacherSchedule.get(teacherId).add(slotKey);
       }
     }
@@ -236,8 +314,35 @@ function shuffleArray(array) {
   return shuffled;
 }
 
-// Helper function to find suitable subject for a time slot
-function findSuitableSubject(subjects, subjectHoursScheduled, teacherSchedule, day, slotIndex, timeSlot) {
+// Find a subject of a specific type for a MinorMajor priority slot
+function findSuitableSubjectOfType(subjects, subjectHoursScheduled, teacherSchedule, day, timeSlot) {
+  const available = subjects.filter(subject => {
+    const subjectId = subject._id.toString();
+    const teacherId = subject.assignedTeacher._id.toString();
+    const hoursScheduled = subjectHoursScheduled.get(subjectId);
+
+    if (hoursScheduled >= subject.hoursPerWeek) return false;
+
+    const slotKey = `${day}-${timeSlot.startTime}-${timeSlot.endTime}`;
+    if (teacherSchedule.get(teacherId)?.has(slotKey)) return false;
+
+    return true;
+  });
+
+  if (available.length === 0) return null;
+
+  available.sort((a, b) => {
+    const aScheduled = subjectHoursScheduled.get(a._id.toString());
+    const bScheduled = subjectHoursScheduled.get(b._id.toString());
+    if (aScheduled !== bScheduled) return aScheduled - bScheduled;
+    return b.hoursPerWeek - a.hoursPerWeek;
+  });
+
+  return available[0];
+}
+
+// Helper function to find suitable subject for a normal time slot
+function findSuitableSubject(subjects, subjectHoursScheduled, teacherSchedule, day, slotIndex, timeSlot, configuredSubjectTypes = new Set()) {
   // Filter available subjects
   const availableSubjects = subjects.filter(subject => {
     const subjectId = subject._id.toString();
@@ -249,19 +354,26 @@ function findSuitableSubject(subjects, subjectHoursScheduled, teacherSchedule, d
       return false;
     }
 
-    // Minor and Major subjects can ONLY be scheduled in 2nd period (slotIndex === 1)
+    // Exclude subject types managed by MinorMajor priority slots
+    if (configuredSubjectTypes.has(subject.subjectType)) {
+      return false;
+    }
+
+    // Unconfigured minor/major subjects can ONLY be scheduled in 2nd period (slotIndex === 1)
     if ((subject.subjectType === 'minor' || subject.subjectType === 'major') && slotIndex !== 1) {
       return false;
     }
 
-    // Non-minor/major subjects should NOT be scheduled in 2nd period if there are minor/major subjects that need scheduling
+    // Non-minor/major subjects should NOT be scheduled in 2nd period if there are
+    // unconfigured minor/major subjects that still need hours
     if (slotIndex === 1 && subject.subjectType !== 'minor' && subject.subjectType !== 'major') {
-      const hasUnscheduledMinorMajor = subjects.some(s => {
+      const hasUnscheduledUnconfiguredMinorMajor = subjects.some(s => {
+        if (configuredSubjectTypes.has(s.subjectType)) return false;
         const sId = s._id.toString();
         const sScheduled = subjectHoursScheduled.get(sId);
         return (s.subjectType === 'minor' || s.subjectType === 'major') && sScheduled < s.hoursPerWeek;
       });
-      if (hasUnscheduledMinorMajor) {
+      if (hasUnscheduledUnconfiguredMinorMajor) {
         return false;
       }
     }
@@ -484,6 +596,9 @@ const updateTimetable = asyncHandler(async (req, res) => {
 
   const currentSubmissionSchedule = new Map();
   for (const slot of timeSlots) {
+    // Reserved slots have no subject/teacher — skip conflict checks
+    if (slot.isReserved) continue;
+
     if (!slot.subject) {
       throw new ApiError(400, `Subject is missing for a slot on ${slot.day} at ${slot.startTime}.`);
     }
@@ -510,15 +625,27 @@ const updateTimetable = asyncHandler(async (req, res) => {
   }
 
   // Process the slots
-  const processedSlots = timeSlots.map(slot => ({
-    day: slot.day,
-    startTime: slot.startTime,
-    endTime: slot.endTime,
-    subject: slot.subject._id ? slot.subject._id : slot.subject,
-    teacher: slot.teacher._id ? slot.teacher._id : slot.teacher,
-    room: slot.room,
-    subjectType: slot.subjectType || 'theory'
-  }));
+  const processedSlots = timeSlots.map(slot => {
+    if (slot.isReserved) {
+      return {
+        day: slot.day,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        isReserved: true,
+        reservedLabel: slot.reservedLabel || '',
+        room: 'TBA',
+      };
+    }
+    return {
+      day: slot.day,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      subject: slot.subject._id ? slot.subject._id : slot.subject,
+      teacher: slot.teacher._id ? slot.teacher._id : slot.teacher,
+      room: slot.room,
+      subjectType: slot.subjectType || 'theory',
+    };
+  });
 
   timetable.timeSlots = processedSlots;
   timetable.lastModifiedBy = req.user._id;
@@ -552,7 +679,7 @@ const getTeacherTimetable = asyncHandler(async (req, res) => {
 
   timetables.forEach(timetable => {
     const teacherSlots = timetable.timeSlots.filter(
-      slot => slot.teacher._id.toString() === teacherId.toString()
+      slot => slot.teacher && slot.teacher._id && slot.teacher._id.toString() === teacherId.toString()
     );
 
     if (teacherSlots.length > 0) {

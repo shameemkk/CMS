@@ -17,12 +17,10 @@ const timeSlotSchema = new mongoose.Schema({
   subject: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Subject',
-    required: true,
   },
   teacher: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
   },
   room: {
     type: String,
@@ -32,6 +30,13 @@ const timeSlotSchema = new mongoose.Schema({
     type: String,
     enum: ['theory', 'practical', 'lab', 'minor', 'major'],
     default: 'theory',
+  },
+  isReserved: {
+    type: Boolean,
+    default: false,
+  },
+  reservedLabel: {
+    type: String,
   }
 });
 

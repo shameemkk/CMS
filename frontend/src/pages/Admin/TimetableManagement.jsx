@@ -483,42 +483,54 @@ const TimetableManagement = () => {
                   return (
                     <td key={`${day}-${timeSlot}`} className="border border-gray-300 px-2 py-2">
                       {isEditMode ? (
-                        <div className={`flex flex-col gap-1 min-w-[120px] ${conflictMsg ? 'bg-red-50 p-1 border border-red-200 rounded' : ''}`}>
-                          <select
-                            className={`text-xs p-1 border rounded w-full ${conflictMsg ? 'border-red-300' : ''}`}
-                            value={slot?.subject?._id || slot?.subject || ""}
-                            onChange={(e) => handleCellChange(day, timeSlot, 'subject', e.target.value)}
-                          >
-                            <option value="">Free</option>
-                            {subjects.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
-                          </select>
-                          {(slot?.subject || slot?.subject?._id) && (
+                        slot?.isReserved ? (
+                          <div className="p-2 rounded text-xs bg-orange-100 text-orange-800 border border-orange-300 text-center font-semibold min-w-[120px]">
+                            {slot.reservedLabel}
+                          </div>
+                        ) : (
+                          <div className={`flex flex-col gap-1 min-w-[120px] ${conflictMsg ? 'bg-red-50 p-1 border border-red-200 rounded' : ''}`}>
                             <select
                               className={`text-xs p-1 border rounded w-full ${conflictMsg ? 'border-red-300' : ''}`}
-                              value={slot?.teacher?._id || slot?.teacher || ""}
-                              onChange={(e) => handleCellChange(day, timeSlot, 'teacher', e.target.value)}
+                              value={slot?.subject?._id || slot?.subject || ""}
+                              onChange={(e) => handleCellChange(day, timeSlot, 'subject', e.target.value)}
                             >
-                              <option value="">Select Teacher</option>
-                              {teachers.filter(t => subjects.some(s => s.assignedTeacher && (s.assignedTeacher.id === (t.id || t._id) || s.assignedTeacher._id === (t.id || t._id) || s.assignedTeacher === (t.id || t._id)))).map(t => <option key={t.id || t._id} value={t.id || t._id}>{t.fullName}</option>)}
+                              <option value="">Free</option>
+                              {subjects.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
                             </select>
-                          )}
-                          {conflictMsg && (
-                            <div className="text-[10px] text-red-600 flex items-start gap-1 mt-1 leading-tight">
-                              <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                              <span>{conflictMsg}</span>
-                            </div>
-                          )}
-                        </div>
+                            {(slot?.subject || slot?.subject?._id) && (
+                              <select
+                                className={`text-xs p-1 border rounded w-full ${conflictMsg ? 'border-red-300' : ''}`}
+                                value={slot?.teacher?._id || slot?.teacher || ""}
+                                onChange={(e) => handleCellChange(day, timeSlot, 'teacher', e.target.value)}
+                              >
+                                <option value="">Select Teacher</option>
+                                {teachers.filter(t => subjects.some(s => s.assignedTeacher && (s.assignedTeacher.id === (t.id || t._id) || s.assignedTeacher._id === (t.id || t._id) || s.assignedTeacher === (t.id || t._id)))).map(t => <option key={t.id || t._id} value={t.id || t._id}>{t.fullName}</option>)}
+                              </select>
+                            )}
+                            {conflictMsg && (
+                              <div className="text-[10px] text-red-600 flex items-start gap-1 mt-1 leading-tight">
+                                <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                                <span>{conflictMsg}</span>
+                              </div>
+                            )}
+                          </div>
+                        )
                       ) : (
                         slot ? (
-                          <div className={`p-2 rounded text-xs ${slot.subjectType === 'lab' ? 'bg-blue-100 text-blue-800' :
-                            slot.subjectType === 'practical' ? 'bg-green-100 text-green-800' :
-                              'bg-purple-100 text-purple-800'
-                            }`}>
-                            <div className="font-medium">{slot.subject?.name || subjects.find(s => s._id === slot.subject)?.name || 'Unknown'}</div>
-                            <div className="text-xs mt-1">{slot.teacher?.fullName || teachers.find(t => (t.id || t._id) === slot.teacher)?.fullName || 'Unknown'}</div>
-                            <div className="text-xs">{slot.room}</div>
-                          </div>
+                          slot.isReserved ? (
+                            <div className="p-2 rounded text-xs bg-orange-100 text-orange-800 border border-orange-300 text-center font-semibold h-16 flex items-center justify-center">
+                              {slot.reservedLabel}
+                            </div>
+                          ) : (
+                            <div className={`p-2 rounded text-xs ${slot.subjectType === 'lab' ? 'bg-blue-100 text-blue-800' :
+                              slot.subjectType === 'practical' ? 'bg-green-100 text-green-800' :
+                                'bg-purple-100 text-purple-800'
+                              }`}>
+                              <div className="font-medium">{slot.subject?.name || subjects.find(s => s._id === slot.subject)?.name || 'Unknown'}</div>
+                              <div className="text-xs mt-1">{slot.teacher?.fullName || teachers.find(t => (t.id || t._id) === slot.teacher)?.fullName || 'Unknown'}</div>
+                              <div className="text-xs">{slot.room}</div>
+                            </div>
+                          )
                         ) : (
                           <div className="h-16 flex items-center justify-center text-gray-400">
                             Free
