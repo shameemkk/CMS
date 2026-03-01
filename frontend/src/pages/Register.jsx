@@ -15,32 +15,54 @@ const Register = () => {
     department: '',
     accountType: '',
     semester: '',
+    batch: '',
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState([]);
+  const [batches, setBatches] = useState([]);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
-    const fetchDepartments = async () => {
+    const fetchRegistrationData = async () => {
       try {
-        const res = await api.departments.list({ status: 'active' });
-        if (res.data) setDepartments(res.data);
+        const [departmentsRes, batchesRes] = await Promise.all([
+          api.departments.list({ status: 'active' }),
+          api.batches.list({ status: 'active' }),
+        ]);
+        if (departmentsRes.data) setDepartments(departmentsRes.data);
+        if (batchesRes.data) setBatches(batchesRes.data);
       } catch (err) {
-        console.error('Failed to load departments', err);
+        console.error('Failed to load registration data', err);
       }
     };
-    fetchDepartments();
+    fetchRegistrationData();
   }, []);
 
   const accountTypes = ['Teacher', 'HOD', 'Student'];
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
+    const { name, value } = e.target;
+    setFormData((prev) => {
+      const updated = {
+        ...prev,
+        [name]: value,
+      };
+
+      // Reset student-only fields when switching role away from student
+      if (name === 'accountType' && value !== 'Student') {
+        updated.semester = '';
+        updated.batch = '';
+      }
+
+      // Reset selected batch when department changes
+      if (name === 'department') {
+        updated.batch = '';
+      }
+
+      return updated;
     });
     setError('');
     setSuccess('');
@@ -60,6 +82,12 @@ const Register = () => {
     // Validate semester for students
     if (formData.accountType === 'Student' && !formData.semester) {
       setError('Please select a semester');
+      return;
+    }
+
+    // Validate batch for students
+    if (formData.accountType === 'Student' && !formData.batch) {
+      setError('Please select a batch');
       return;
     }
 
@@ -88,6 +116,7 @@ const Register = () => {
       // Add semester only for students
       if (formData.accountType === 'Student') {
         registrationData.semester = parseInt(formData.semester);
+        registrationData.batch = formData.batch;
       }
 
       await register(registrationData);
@@ -101,6 +130,7 @@ const Register = () => {
         department: '',
         accountType: '',
         semester: '',
+        batch: '',
       });
       setTimeout(() => navigate('/login'), 1200);
     } catch (err) {
@@ -232,26 +262,52 @@ const Register = () => {
             </div>
 
             {formData.accountType === 'Student' && (
-              <div>
-                <label htmlFor="semester" className="block text-sm font-medium text-gray-700 mb-1">
-                  Semester
-                </label>
-                <select
-                  id="semester"
-                  name="semester"
-                  required
-                  value={formData.semester}
-                  onChange={handleChange}
-                  className="appearance-none relative block w-full px-3 py-2 border border-gray-300 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718] focus:border-transparent bg-white"
-                >
-                  <option value="">Select Semester</option>
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
-                    <option key={sem} value={sem}>
-                      Semester {sem}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <>
+                <div>
+                  <label htmlFor="semester" className="block text-sm font-medium text-gray-700 mb-1">
+                    Semester
+                  </label>
+                  <select
+                    id="semester"
+                    name="semester"
+                    required
+                    value={formData.semester}
+                    onChange={handleChange}
+                    className="appearance-none relative block w-full px-3 py-2 border border-gray-300 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718] focus:border-transparent bg-white"
+                  >
+                    <option value="">Select Semester</option>
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+                      <option key={sem} value={sem}>
+                        Semester {sem}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="batch" className="block text-sm font-medium text-gray-700 mb-1">
+                    Batch
+                  </label>
+                  <select
+                    id="batch"
+                    name="batch"
+                    required
+                    value={formData.batch}
+                    onChange={handleChange}
+                    disabled={!formData.department}
+                    className="appearance-none relative block w-full px-3 py-2 border border-gray-300 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718] focus:border-transparent bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">{formData.department ? 'Select Batch' : 'Select Department First'}</option>
+                    {batches
+                      .filter((batch) => batch.department === formData.department)
+                      .map((batch) => (
+                        <option key={batch._id} value={batch.batchCode}>
+                          {batch.batchCode}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </>
             )}
 
             <div>

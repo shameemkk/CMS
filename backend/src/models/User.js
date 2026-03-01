@@ -34,6 +34,11 @@ const userSchema = new mongoose.Schema(
         return this.role === 'student';
       }
     },
+    batch: {
+      type: String,
+      trim: true,
+      uppercase: true,
+    },
     role: {
       type: String,
       required: [true, 'Role is required'],
@@ -89,5 +94,4 @@ userSchema.methods.toJSON = function () {
 const User = mongoose.model('User', userSchema);
 
 export default User;
-
 

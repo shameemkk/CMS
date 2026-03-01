@@ -11,12 +11,14 @@ import { adminMiddleware } from '../middlewares/admin.middleware.js';
 
 const router = express.Router();
 
-// All routes require authentication
+// Public route for fetching batches (e.g., for registration)
+router.get('/', getAllBatches);
+
+// Protect all other routes
 router.use(authMiddleware);
 
 // Admin only routes
 router.post('/', adminMiddleware, createBatch);
-router.get('/', getAllBatches);
 router.get('/:id', getBatchById);
 router.put('/:id', adminMiddleware, updateBatch);
 router.delete('/:id', adminMiddleware, deleteBatch);

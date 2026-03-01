@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Batch from '../models/Batch.js';
 import { generateToken } from '../utils/generateToken.js';
 import { asyncHandler } from '../utils/errorHandler.js';
 import { config } from '../config/env.js';
@@ -54,7 +55,7 @@ export const adminLogin = asyncHandler(async (req, res) => {
  * @access  Public
  */
 export const register = asyncHandler(async (req, res) => {
-  const { fullName, email, phone, department, role, password, confirmPassword, semester, specialization } = req.body;
+  const { fullName, email, phone, department, role, password, confirmPassword, semester, specialization, batch } = req.body;
 
   // Validation
   if (!fullName || !email || !phone || !department || !role || !password || !confirmPassword) {
@@ -70,6 +71,32 @@ export const register = asyncHandler(async (req, res) => {
       success: false,
       message: 'Semester is required for students',
     });
+  }
+
+  // Validate batch for students
+  const normalizedDepartment = department.toUpperCase().trim();
+
+  if (role.toLowerCase() === 'student' && !batch) {
+    return res.status(400).json({
+      success: false,
+      message: 'Batch is required for students',
+    });
+  }
+
+  if (role.toLowerCase() === 'student' && batch) {
+    const normalizedBatch = batch.toUpperCase().trim();
+    const existingBatch = await Batch.findOne({
+      batchCode: normalizedBatch,
+      department: normalizedDepartment,
+      status: 'active',
+    });
+
+    if (!existingBatch) {
+      return res.status(400).json({
+        success: false,
+        message: 'Selected batch is invalid for the chosen department',
+      });
+    }
   }
 
   if (password !== confirmPassword) {
@@ -101,7 +128,7 @@ export const register = asyncHandler(async (req, res) => {
     fullName,
     email: email.toLowerCase(),
     phone,
-    department,
+    department: normalizedDepartment,
     role: role.toLowerCase(),
     password,
     status: 'pending',
@@ -110,6 +137,7 @@ export const register = asyncHandler(async (req, res) => {
   // Add semester only for students
   if (role.toLowerCase() === 'student') {
     userData.semester = parseInt(semester);
+    userData.batch = batch.toUpperCase().trim();
   }
 
   // Add specialization for teachers and HODs
@@ -133,6 +161,7 @@ export const register = asyncHandler(async (req, res) => {
   // Include semester in response for students
   if (user.role === 'student') {
     responseUser.semester = user.semester;
+    responseUser.batch = user.batch;
   }
 
   // Include specialization for teachers and HODs
@@ -212,6 +241,7 @@ export const login = asyncHandler(async (req, res) => {
   // Include semester for students
   if (user.role === 'student') {
     userResponse.semester = user.semester;
+    userResponse.batch = user.batch;
   }
 
   res.status(200).json({
@@ -310,6 +340,7 @@ export const getMe = asyncHandler(async (req, res) => {
   // Include semester for students
   if (user.role === 'student') {
     userResponse.semester = user.semester;
+    userResponse.batch = user.batch;
   }
 
   res.status(200).json({
@@ -317,5 +348,3 @@ export const getMe = asyncHandler(async (req, res) => {
     user: userResponse,
   });
 });
-
-

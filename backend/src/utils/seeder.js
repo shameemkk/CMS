@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Subject from '../models/Subject.js';
 import Department from '../models/Department.js';
+import Batch from '../models/Batch.js';
 import MinorMajor from '../models/MinorMajor.js';
 import dotenv from 'dotenv';
 
@@ -13,6 +14,7 @@ const seedData = async () => {
 
     // Clear existing data
     await Department.deleteMany({});
+    await Batch.deleteMany({});
     await User.deleteMany({});
     await Subject.deleteMany({});
     await MinorMajor.deleteMany({});
@@ -70,6 +72,46 @@ const seedData = async () => {
       createdDepartments.push(department);
     }
     console.log(`✓ ${createdDepartments.length} Departments created successfully`);
+
+    // Create Batches
+    const batchesData = [
+      {
+        department: 'BCA',
+        startDate: new Date('2024-06-01'),
+        endDate: new Date('2027-05-31'),
+        status: 'active',
+        createdBy: adminUser._id
+      },
+      {
+        department: 'BCOM',
+        startDate: new Date('2024-06-01'),
+        endDate: new Date('2027-05-31'),
+        status: 'active',
+        createdBy: adminUser._id
+      },
+      {
+        department: 'BA',
+        startDate: new Date('2024-06-01'),
+        endDate: new Date('2027-05-31'),
+        status: 'active',
+        createdBy: adminUser._id
+      },
+      {
+        department: 'BSC',
+        startDate: new Date('2024-06-01'),
+        endDate: new Date('2027-05-31'),
+        status: 'active',
+        createdBy: adminUser._id
+      }
+    ];
+
+    const createdBatches = [];
+    for (const batchData of batchesData) {
+      const batch = new Batch(batchData);
+      await batch.save();
+      createdBatches.push(batch);
+    }
+    console.log(`âœ“ ${createdBatches.length} Batches created successfully`);
 
     // Create HODs for each department
     const hodsData = [
@@ -222,12 +264,14 @@ const seedData = async () => {
     console.log(`✓ ${createdTeachers.length} BCA Teachers created successfully`);
 
     // Create Students for BCA Department
+    const bcaBatch = createdBatches.find((batch) => batch.department === 'BCA');
     const bcaStudentsData = [
       {
         fullName: 'Aarav Sharma',
         email: 'aarav.sharma@student.edu',
         phone: '9876543230',
         department: 'BCA',
+        batch: bcaBatch?.batchCode,
         semester: 1,
         role: 'student',
         password: 'student123',
@@ -238,6 +282,7 @@ const seedData = async () => {
         email: 'vivaan.patel@student.edu',
         phone: '9876543231',
         department: 'BCA',
+        batch: bcaBatch?.batchCode,
         semester: 1,
         role: 'student',
         password: 'student123',
@@ -248,6 +293,7 @@ const seedData = async () => {
         email: 'aditya.kumar@student.edu',
         phone: '9876543232',
         department: 'BCA',
+        batch: bcaBatch?.batchCode,
         semester: 3,
         role: 'student',
         password: 'student123',
@@ -258,6 +304,7 @@ const seedData = async () => {
         email: 'vihaan.singh@student.edu',
         phone: '9876543233',
         department: 'BCA',
+        batch: bcaBatch?.batchCode,
         semester: 3,
         role: 'student',
         password: 'student123',
@@ -268,6 +315,7 @@ const seedData = async () => {
         email: 'arjun.gupta@student.edu',
         phone: '9876543234',
         department: 'BCA',
+        batch: bcaBatch?.batchCode,
         semester: 5,
         role: 'student',
         password: 'student123',
@@ -410,6 +458,7 @@ const seedData = async () => {
     console.log('\n🎉 Data seeding completed successfully!');
     console.log(`📊 Summary:`);
     console.log(`   - Departments: ${createdDepartments.length}`);
+    console.log(`   - Batches: ${createdBatches.length}`);
     console.log(`   - Admin Users: 1`);
     console.log(`   - HODs: ${createdHODs.length}`);
     console.log(`   - Teachers: ${createdTeachers.length}`);

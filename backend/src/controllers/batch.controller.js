@@ -59,11 +59,14 @@ const createBatch = asyncHandler(async (req, res) => {
 
 // Get all batches
 const getAllBatches = asyncHandler(async (req, res) => {
-  const { status } = req.query;
+  const { status, department } = req.query;
 
   const filter = {};
   if (status) {
     filter.status = status;
+  }
+  if (department) {
+    filter.department = department.toUpperCase();
   }
 
   const batches = await Batch.find(filter).sort({ createdAt: -1 });

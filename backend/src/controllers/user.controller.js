@@ -30,6 +30,7 @@ export const getProfile = asyncHandler(async (req, res) => {
   // Include semester for students
   if (user.role === 'student') {
     userResponse.semester = user.semester;
+    userResponse.batch = user.batch;
   }
 
   res.status(200).json({
@@ -76,6 +77,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
   // Include semester for students
   if (user.role === 'student') {
     userResponse.semester = user.semester;
+    userResponse.batch = user.batch;
   }
 
   res.status(200).json({
@@ -102,6 +104,7 @@ export const getPendingUsers = asyncHandler(async (req, res) => {
       email: user.email,
       phone: user.phone,
       department: user.department,
+      batch: user.batch,
       role: user.role,
       status: user.status,
       createdAt: user.createdAt,
@@ -143,6 +146,7 @@ export const getAllUsers = asyncHandler(async (req, res) => {
       email: user.email,
       phone: user.phone,
       department: user.department,
+      batch: user.batch,
       role: user.role,
       status: user.status,
       createdAt: user.createdAt,
@@ -223,6 +227,7 @@ export const getUsersByRole = asyncHandler(async (req, res) => {
       phone: user.phone,
       department: user.department,
       semester: user.semester,
+      batch: user.batch,
       role: user.role,
     })),
   });
@@ -450,7 +455,7 @@ export const promoteStudents = asyncHandler(async (req, res) => {
  */
 export const updateUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { fullName, phone, semester } = req.body;
+  const { fullName, phone, semester, batch } = req.body;
 
   const user = await User.findById(id);
 
@@ -473,6 +478,7 @@ export const updateUser = asyncHandler(async (req, res) => {
   if (fullName) user.fullName = fullName;
   if (phone) user.phone = phone;
   if (semester && user.role === 'student') user.semester = semester;
+  if (batch && user.role === 'student') user.batch = batch.toUpperCase().trim();
 
   await user.save();
 
@@ -487,6 +493,7 @@ export const updateUser = asyncHandler(async (req, res) => {
       department: user.department,
       role: user.role,
       semester: user.semester,
+      batch: user.batch,
       status: user.status,
     },
   });
