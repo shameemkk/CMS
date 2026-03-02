@@ -17,6 +17,62 @@ const TIME_SLOTS = [
 ];
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+const CONFLICT_RESOLUTION_ATTEMPTS = 10;
+
+// Build a deficit report: how many hours each subject still needs.
+function getSubjectHourDeficitReport(subjects, subjectHoursScheduled) {
+  const deficits = [];
+  let totalDeficit = 0;
+
+  subjects.forEach(subject => {
+    const subjectId = subject._id.toString();
+    const required = Number(subject.hoursPerWeek) || 0;
+    const scheduled = subjectHoursScheduled.get(subjectId) || 0;
+    const deficit = Math.max(0, required - scheduled);
+
+    if (deficit > 0) {
+      deficits.push({
+        subjectId,
+        name: subject.name,
+        code: subject.code,
+        required,
+        scheduled,
+        deficit,
+      });
+      totalDeficit += deficit;
+    }
+  });
+
+  return { totalDeficit, deficits };
+}
+
+// Try multiple randomized generations and keep the best one.
+function generateBestTimeSlots(subjects, existingTimetables = [], minorMajorConfigs = [], attempts = CONFLICT_RESOLUTION_ATTEMPTS) {
+  let bestResult = null;
+
+  for (let i = 0; i < attempts; i++) {
+    const candidate = generateTimeSlots(subjects, existingTimetables, minorMajorConfigs);
+    const report = getSubjectHourDeficitReport(subjects, candidate.subjectHoursScheduled);
+
+    if (
+      !bestResult ||
+      report.totalDeficit < bestResult.report.totalDeficit ||
+      (report.totalDeficit === bestResult.report.totalDeficit && candidate.timeSlots.length > bestResult.timeSlots.length)
+    ) {
+      bestResult = {
+        timeSlots: candidate.timeSlots,
+        subjectHoursScheduled: candidate.subjectHoursScheduled,
+        report,
+      };
+    }
+
+    if (report.totalDeficit === 0) {
+      break;
+    }
+  }
+
+  return bestResult;
+}
 
 // Generate automatic timetable
 const generateTimetable = asyncHandler(async (req, res) => {
@@ -102,8 +158,27 @@ const generateTimetable = asyncHandler(async (req, res) => {
     })));
 
     // Generate timetable slots with conflict checking and MinorMajor priority slots
-    const timeSlots = generateTimeSlots(subjects, existingTimetables, minorMajorConfigs);
-    console.log('⏰ Generated time slots:', timeSlots.length);
+    const generationResult = generateBestTimeSlots(
+      subjects,
+      existingTimetables,
+      minorMajorConfigs,
+      CONFLICT_RESOLUTION_ATTEMPTS
+    );
+    const { timeSlots, report } = generationResult;
+    console.log('⏰ Generated time slots:', timeSlots.length, 'Deficit:', report.totalDeficit);
+
+    const totalWeeklySlots = DAYS.length * TIME_SLOTS.length;
+    const freePeriods = totalWeeklySlots - timeSlots.length;
+    let generationWarning = null;
+
+    // After 10 attempts, keep the best timetable and leave unresolved slots as free periods.
+    if (report.totalDeficit > 0) {
+      const summary = report.deficits
+        .map(d => `${d.name} (${d.scheduled}/${d.required})`)
+        .join(', ');
+      generationWarning = `Unable to allocate all required hours after ${CONFLICT_RESOLUTION_ATTEMPTS} attempts due to teacher/slot conflicts: ${summary}. Remaining slots are left as free periods.`;
+      console.warn('⚠️ Timetable generated with unresolved deficits:', generationWarning);
+    }
 
     // Create new timetable
     const timetable = new Timetable({
@@ -123,8 +198,22 @@ const generateTimetable = asyncHandler(async (req, res) => {
       .populate('timeSlots.teacher')
       .populate('createdBy', 'fullName email');
 
+    const responsePayload = populatedTimetable.toObject();
+    if (generationWarning) {
+      responsePayload.generationWarnings = {
+        attempts: CONFLICT_RESOLUTION_ATTEMPTS,
+        freePeriods,
+        deficits: report.deficits,
+        message: generationWarning,
+      };
+    }
+
     res.status(201).json(
-      new ApiResponse(201, populatedTimetable, 'Timetable generated successfully')
+      new ApiResponse(
+        201,
+        responsePayload,
+        generationWarning ? 'Timetable generated with free periods due to unresolved conflicts' : 'Timetable generated successfully'
+      )
     );
 
   } catch (error) {
@@ -142,13 +231,16 @@ const generateTimetable = asyncHandler(async (req, res) => {
       errorMessage = 'Some subjects do not have assigned teachers. Please assign teachers to all subjects before generating a timetable.';
     } else if (error.message.includes('Teacher conflict')) {
       errorMessage = 'Teacher scheduling conflict detected. Some teachers are already scheduled for other semesters at the same time.';
+    } else if (error.message.includes('Unable to allocate all required hours')) {
+      errorMessage = error.message;
     } else if (error.message.includes('validation failed')) {
       errorMessage = 'Invalid data provided. Please check all required fields and try again.';
     } else if (!errorMessage || errorMessage === 'undefined') {
       errorMessage = 'An unexpected error occurred while generating the timetable. Please try again.';
     }
-    
-    throw new ApiError(500, errorMessage);
+
+    const statusCode = error instanceof ApiError ? error.statusCode : 500;
+    throw new ApiError(statusCode, errorMessage);
   }
 });
 
@@ -198,6 +290,12 @@ function generateTimeSlots(subjects, existingTimetables = [], minorMajorConfigs 
     prioritySlotMap.get(slotIndex).push(config);
   });
 
+  // Direct lookup: subjectType -> configured slotIndex (0-based)
+  const prioritySlotByType = new Map();
+  minorMajorConfigs.forEach(config => {
+    prioritySlotByType.set(config.subjectType, config.prioritySlot - 1);
+  });
+
   // Set of subject types that have a MinorMajor config (handled by priority slots)
   const configuredSubjectTypes = new Set(minorMajorConfigs.map(c => c.subjectType));
 
@@ -212,17 +310,20 @@ function generateTimeSlots(subjects, existingTimetables = [], minorMajorConfigs 
   for (const day of DAYS) {
     for (let slotIndex = 0; slotIndex < TIME_SLOTS.length; slotIndex++) {
       const timeSlot = TIME_SLOTS[slotIndex];
+      let slotFilled = false; // Track whether this slot was filled by priority logic
 
       // ── Priority slot handling (MinorMajor config) ──────────────────────────
       if (prioritySlotMap.has(slotIndex)) {
         const configs = prioritySlotMap.get(slotIndex);
 
         for (const config of configs) {
+          if (slotFilled) break; // Slot already taken by an earlier config
+
           const { subjectType } = config;
           const subjectExistsInSemester = subjectTypeExistsMap.get(subjectType);
 
           if (!subjectExistsInSemester) {
-            // Subject type not found in semester subjects → reserve the slot
+            // Subject type not found in semester → reserve the slot permanently
             timeSlots.push({
               day,
               startTime: timeSlot.startTime,
@@ -231,6 +332,7 @@ function generateTimeSlots(subjects, existingTimetables = [], minorMajorConfigs 
               reservedLabel: `Reserved for ${subjectType.toUpperCase()}`,
               room: 'TBA',
             });
+            slotFilled = true;
           } else {
             // Subject type exists → try to schedule a subject of that type
             const prioritySubjects = subjects.filter(s => s.subjectType === subjectType);
@@ -262,14 +364,22 @@ function generateTimeSlots(subjects, existingTimetables = [], minorMajorConfigs 
                 teacherSchedule.set(teacherId, new Set());
               }
               teacherSchedule.get(teacherId).add(slotKey);
+              slotFilled = true;
             }
-            // If hours exhausted or teacher conflict, skip this slot for that day
+            // If hours exhausted or teacher conflict → try next config or fall through to normal scheduling
           }
         }
-        continue; // Do not run normal scheduling for priority slot indices
+
+        // Only skip normal scheduling if the priority slot was actually filled.
+        // If no minor/major subject could be scheduled (hours exhausted or conflict),
+        // fall through and let a regular subject use this slot instead.
+        if (slotFilled) continue;
       }
 
       // ── Normal slot handling ─────────────────────────────────────────────────
+      // Runs for non-priority slots AND as fallback for priority slots whose
+      // minor/major subject has already met its weekly hour quota.
+      const isFallback = prioritySlotMap.has(slotIndex); // true when falling through from a priority slot
       const suitableSubject = findSuitableSubject(
         subjects,
         subjectHoursScheduled,
@@ -277,7 +387,9 @@ function generateTimeSlots(subjects, existingTimetables = [], minorMajorConfigs 
         day,
         slotIndex,
         timeSlot,
-        configuredSubjectTypes
+        configuredSubjectTypes,
+        prioritySlotByType,
+        isFallback
       );
 
       if (suitableSubject) {
@@ -301,7 +413,7 @@ function generateTimeSlots(subjects, existingTimetables = [], minorMajorConfigs 
     }
   }
 
-  return timeSlots;
+  return { timeSlots, subjectHoursScheduled };
 }
 
 // Helper function to shuffle an array (Fisher-Yates algorithm)
@@ -331,18 +443,43 @@ function findSuitableSubjectOfType(subjects, subjectHoursScheduled, teacherSched
 
   if (available.length === 0) return null;
 
+  // For configured slots, prioritize the subject that needs the largest weekly load.
+  // This keeps high-hour major/minor subjects anchored in their configured slot.
   available.sort((a, b) => {
     const aScheduled = subjectHoursScheduled.get(a._id.toString());
     const bScheduled = subjectHoursScheduled.get(b._id.toString());
+    const aRequired = Number(a.hoursPerWeek) || 0;
+    const bRequired = Number(b.hoursPerWeek) || 0;
+    const aRemaining = aRequired - aScheduled;
+    const bRemaining = bRequired - bScheduled;
+
+    if (aRequired !== bRequired) return bRequired - aRequired;
+    if (aRemaining !== bRemaining) return bRemaining - aRemaining;
     if (aScheduled !== bScheduled) return aScheduled - bScheduled;
-    return b.hoursPerWeek - a.hoursPerWeek;
+    return 0;
   });
 
   return available[0];
 }
 
-// Helper function to find suitable subject for a normal time slot
-function findSuitableSubject(subjects, subjectHoursScheduled, teacherSchedule, day, slotIndex, timeSlot, configuredSubjectTypes = new Set()) {
+// Helper function to find suitable subject for a normal time slot.
+// isFallbackForPrioritySlot: true when called because a priority slot's minor/major
+// could not be scheduled (hours exhausted or conflict). In this case the slot index
+// may equal the configured priority position, but we allow any non-configured subject.
+function findSuitableSubject(
+  subjects,
+  subjectHoursScheduled,
+  teacherSchedule,
+  day,
+  slotIndex,
+  timeSlot,
+  configuredSubjectTypes = new Set(),
+  prioritySlotByType = new Map(),
+  isFallbackForPrioritySlot = false
+) {
+  // Which slot index is dedicated to unconfigured minor/major (fixed at period 2 = index 1)
+  const UNCONFIGURED_MINOR_MAJOR_SLOT = 1;
+
   // Filter available subjects
   const availableSubjects = subjects.filter(subject => {
     const subjectId = subject._id.toString();
@@ -354,26 +491,50 @@ function findSuitableSubject(subjects, subjectHoursScheduled, teacherSchedule, d
       return false;
     }
 
-    // Exclude subject types managed by MinorMajor priority slots
-    if (configuredSubjectTypes.has(subject.subjectType)) {
+    const isMinorMajor = subject.subjectType === 'minor' || subject.subjectType === 'major';
+    const isConfiguredMinorMajorType = isMinorMajor && configuredSubjectTypes.has(subject.subjectType);
+    const configuredSlotIndex = prioritySlotByType.has(subject.subjectType)
+      ? prioritySlotByType.get(subject.subjectType)
+      : null;
+
+    // Keep configured minor/major subjects for their configured slot if it is later in the same day.
+    // This avoids consuming them in earlier periods and missing the intended priority period.
+    if (
+      !isFallbackForPrioritySlot &&
+      isConfiguredMinorMajorType &&
+      configuredSlotIndex !== null &&
+      slotIndex < configuredSlotIndex
+    ) {
       return false;
     }
 
-    // Unconfigured minor/major subjects can ONLY be scheduled in 2nd period (slotIndex === 1)
-    if ((subject.subjectType === 'minor' || subject.subjectType === 'major') && slotIndex !== 1) {
-      return false;
-    }
+    // Unconfigured minor/major subjects can ONLY be scheduled in the dedicated slot
+    // (period 2, index 1).  Skip this restriction when we are running as a fallback
+    // for a priority slot — in that case slotIndex IS the priority position and we
+    // still want theory/lab/configured-minor-major subjects to fill it; unconfigured minor/major will be
+    // rejected below by the dedicated-slot check anyway.
+    if (!isFallbackForPrioritySlot) {
+      if (isMinorMajor && !isConfiguredMinorMajorType && slotIndex !== UNCONFIGURED_MINOR_MAJOR_SLOT) {
+        return false;
+      }
 
-    // Non-minor/major subjects should NOT be scheduled in 2nd period if there are
-    // unconfigured minor/major subjects that still need hours
-    if (slotIndex === 1 && subject.subjectType !== 'minor' && subject.subjectType !== 'major') {
-      const hasUnscheduledUnconfiguredMinorMajor = subjects.some(s => {
-        if (configuredSubjectTypes.has(s.subjectType)) return false;
-        const sId = s._id.toString();
-        const sScheduled = subjectHoursScheduled.get(sId);
-        return (s.subjectType === 'minor' || s.subjectType === 'major') && sScheduled < s.hoursPerWeek;
-      });
-      if (hasUnscheduledUnconfiguredMinorMajor) {
+      // Non-minor/major subjects should NOT occupy the dedicated minor/major slot
+      // while unconfigured minor/major subjects still have unscheduled hours.
+      if (slotIndex === UNCONFIGURED_MINOR_MAJOR_SLOT && subject.subjectType !== 'minor' && subject.subjectType !== 'major') {
+        const hasUnscheduledUnconfiguredMinorMajor = subjects.some(s => {
+          if (configuredSubjectTypes.has(s.subjectType)) return false;
+          const sId = s._id.toString();
+          const sScheduled = subjectHoursScheduled.get(sId);
+          return (s.subjectType === 'minor' || s.subjectType === 'major') && sScheduled < s.hoursPerWeek;
+        });
+        if (hasUnscheduledUnconfiguredMinorMajor) {
+          return false;
+        }
+      }
+    } else {
+      // Fallback for a priority slot: unconfigured minor/major may only appear here
+      // if slotIndex happens to be their dedicated slot (index 1); otherwise skip them.
+      if (isMinorMajor && !isConfiguredMinorMajorType && slotIndex !== UNCONFIGURED_MINOR_MAJOR_SLOT) {
         return false;
       }
     }
@@ -400,22 +561,34 @@ function findSuitableSubject(subjects, subjectHoursScheduled, teacherSchedule, d
     return null;
   }
 
-  // Sort by priority: subjects with fewer scheduled hours first
+  // Sort by priority:
+  // 1) subjects with more remaining hours first
+  // 2) then subjects with fewer already scheduled hours
+  // 3) then subjects with more total required hours
   availableSubjects.sort((a, b) => {
     const aScheduled = subjectHoursScheduled.get(a._id.toString());
     const bScheduled = subjectHoursScheduled.get(b._id.toString());
+    const aRemaining = a.hoursPerWeek - aScheduled;
+    const bRemaining = b.hoursPerWeek - bScheduled;
+
+    if (aRemaining !== bRemaining) {
+      return bRemaining - aRemaining;
+    }
 
     if (aScheduled !== bScheduled) {
       return aScheduled - bScheduled;
     }
 
-    // If same scheduled hours, prioritize subjects with more total hours needed
+    // If same progress, prioritize subjects with more total required hours.
     return b.hoursPerWeek - a.hoursPerWeek;
   });
 
-  // Get subjects with the same priority (same number of scheduled hours)
-  const minScheduled = subjectHoursScheduled.get(availableSubjects[0]._id.toString());
+  // Get subjects with the same priority key to keep randomness only for true ties.
+  const firstSubject = availableSubjects[0];
+  const minScheduled = subjectHoursScheduled.get(firstSubject._id.toString());
+  const maxRemaining = firstSubject.hoursPerWeek - minScheduled;
   const samePrioritySubjects = availableSubjects.filter(subject =>
+    (subject.hoursPerWeek - subjectHoursScheduled.get(subject._id.toString())) === maxRemaining &&
     subjectHoursScheduled.get(subject._id.toString()) === minScheduled
   );
 
