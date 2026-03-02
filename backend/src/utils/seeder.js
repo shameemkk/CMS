@@ -334,7 +334,7 @@ const seedData = async () => {
       // Semester 1
       { name: 'Fundamentals of Computer', code: 'BCA101', semester: 1, credits: 4, hoursPerWeek: 4, subjectType: 'theory', teacherSpecialization: 'Programming Languages' },
       { name: 'Programming in C', code: 'BCA102', semester: 1, credits: 4, hoursPerWeek: 5, subjectType: 'theory', teacherSpecialization: 'Programming Languages' },
-      { name: 'Mathematics-I', code: 'BCA103', semester: 1, credits: 4, hoursPerWeek: 4, subjectType: 'theory', teacherSpecialization: 'Mathematics' },
+      { name: 'Mathematics-I', code: 'BCA103', semester: 1, credits: 4, hoursPerWeek: 4, subjectType: 'major', teacherSpecialization: 'Mathematics' },
       { name: 'Digital Electronics', code: 'BCA104', semester: 1, credits: 4, hoursPerWeek: 4, subjectType: 'theory', teacherSpecialization: 'Computer Networks' },
       { name: 'English Communication', code: 'BCA105', semester: 1, credits: 3, hoursPerWeek: 3, subjectType: 'theory', teacherSpecialization: 'English Communication' },
       { name: 'C Programming Lab', code: 'BCA106', semester: 1, credits: 2, hoursPerWeek: 3, subjectType: 'lab', teacherSpecialization: 'Programming Languages' },
@@ -348,11 +348,11 @@ const seedData = async () => {
       { name: 'Data Structures Lab', code: 'BCA206', semester: 2, credits: 2, hoursPerWeek: 3, subjectType: 'lab', teacherSpecialization: 'Data Structures' },
 
       // Semester 3
-      { name: 'Database Management System', code: 'BCA301', semester: 3, credits: 4, hoursPerWeek: 4, subjectType: 'theory', teacherSpecialization: 'Database Systems' },
+      { name: 'Database Management System', code: 'BCA301', semester: 3, credits: 4, hoursPerWeek: 4, subjectType: 'major', teacherSpecialization: 'Database Systems' },
       { name: 'Java Programming', code: 'BCA302', semester: 3, credits: 4, hoursPerWeek: 5, subjectType: 'theory', teacherSpecialization: 'Programming Languages' },
       { name: 'Computer Networks', code: 'BCA303', semester: 3, credits: 4, hoursPerWeek: 4, subjectType: 'theory', teacherSpecialization: 'Computer Networks' },
       { name: 'Operating Systems', code: 'BCA304', semester: 3, credits: 4, hoursPerWeek: 4, subjectType: 'theory', teacherSpecialization: 'Operating Systems' },
-      { name: 'Discrete Mathematics', code: 'BCA305', semester: 3, credits: 4, hoursPerWeek: 4, subjectType: 'theory', teacherSpecialization: 'Mathematics' },
+      { name: 'Discrete Mathematics', code: 'BCA305', semester: 3, credits: 4, hoursPerWeek: 4, subjectType: 'minor1', teacherSpecialization: 'Mathematics' },
       { name: 'DBMS Lab', code: 'BCA306', semester: 3, credits: 2, hoursPerWeek: 3, subjectType: 'lab', teacherSpecialization: 'Database Systems' },
 
       // Semester 4
@@ -410,14 +410,34 @@ const seedData = async () => {
 
     console.log(`✓ ${createdSubjects.length} BCA Subjects created successfully with assigned teachers`);
 
-    // Create MinorMajor configurations
+    // Create MinorMajor configurations for all semesters
     const minorMajorConfigs = [
+      // BCA Department - Semester 1 (Major subjects only)
+      {
+        department: 'BCA',
+        semester: 1,
+        subjectType: 'major',
+        prioritySlot: 2, // 2nd period (10:30-11:20)
+        description: 'Major subjects are scheduled in 2nd period for BCA Semester 1',
+        isActive: true,
+        createdBy: adminUser._id
+      },
+      // BCA Department - Semester 3 (Minor and Major subjects)
       {
         department: 'BCA',
         semester: 3,
-        subjectType: 'minor',
+        subjectType: 'minor1',
         prioritySlot: 2, // 2nd period (10:30-11:20)
-        description: 'Minor subjects are scheduled in 2nd period for BCA department',
+        description: 'Minor1 subjects are scheduled in 2nd period for BCA Semester 3',
+        isActive: true,
+        createdBy: adminUser._id
+      },
+      {
+        department: 'BCA',
+        semester: 3,
+        subjectType: 'minor2',
+        prioritySlot: 3, // 3rd period (11:30-12:30)
+        description: 'Minor2 subjects are scheduled in 3rd period for BCA Semester 3',
         isActive: true,
         createdBy: adminUser._id
       },
@@ -425,17 +445,36 @@ const seedData = async () => {
         department: 'BCA',
         semester: 3,
         subjectType: 'major',
-        prioritySlot: 2, // 2nd period (10:30-11:20)
-        description: 'Major subjects are scheduled in 2nd period for BCA department',
+        prioritySlot: 4, // 4th period (13:30-14:30)
+        description: 'Major subjects are scheduled in 4th period for BCA Semester 3',
+        isActive: true,
+        createdBy: adminUser._id
+      },
+      // BCOM Department configurations
+      {
+        department: 'BCOM',
+        semester: 1,
+        subjectType: 'major',
+        prioritySlot: 3, // 3rd period (11:30-12:30)
+        description: 'Major subjects are scheduled in 3rd period for BCOM Semester 1',
         isActive: true,
         createdBy: adminUser._id
       },
       {
         department: 'BCOM',
         semester: 3,
-        subjectType: 'minor',
+        subjectType: 'minor1',
         prioritySlot: 3, // 3rd period (11:30-12:30)
-        description: 'Minor subjects are scheduled in 3rd period for BCOM department',
+        description: 'Minor1 subjects are scheduled in 3rd period for BCOM Semester 3',
+        isActive: true,
+        createdBy: adminUser._id
+      },
+      {
+        department: 'BCOM',
+        semester: 3,
+        subjectType: 'minor2',
+        prioritySlot: 4, // 4th period (13:30-14:30)
+        description: 'Minor2 subjects are scheduled in 4th period for BCOM Semester 3',
         isActive: true,
         createdBy: adminUser._id
       },
@@ -443,8 +482,8 @@ const seedData = async () => {
         department: 'BCOM',
         semester: 3,
         subjectType: 'major',
-        prioritySlot: 3, // 3rd period (11:30-12:30)
-        description: 'Major subjects are scheduled in 3rd period for BCOM department',
+        prioritySlot: 2, // 2nd period (10:30-11:20)
+        description: 'Major subjects are scheduled in 2nd period for BCOM Semester 3',
         isActive: true,
         createdBy: adminUser._id
       }

@@ -57,8 +57,8 @@ export const createMinorMajor = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Department, subject type, priority slot, and semester are required');
   }
 
-  if (!['minor', 'major'].includes(subjectType)) {
-    throw new ApiError(400, 'Subject type must be either "minor" or "major"');
+  if (!['minor1', 'minor2', 'major'].includes(subjectType)) {
+    throw new ApiError(400, 'Subject type must be "minor1", "minor2", or "major"');
   }
 
   if (prioritySlot < 1 || prioritySlot > 5) {
@@ -111,8 +111,8 @@ export const updateMinorMajor = asyncHandler(async (req, res) => {
   }
 
   // Validation for updates
-  if (subjectType && !['minor', 'major'].includes(subjectType)) {
-    throw new ApiError(400, 'Subject type must be either "minor" or "major"');
+  if (subjectType && !['minor1', 'minor2', 'major'].includes(subjectType)) {
+    throw new ApiError(400, 'Subject type must be "minor1", "minor2", or "major"');
   }
 
   if (prioritySlot && (prioritySlot < 1 || prioritySlot > 5)) {

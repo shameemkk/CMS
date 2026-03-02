@@ -477,9 +477,6 @@ function findSuitableSubject(
   prioritySlotByType = new Map(),
   isFallbackForPrioritySlot = false
 ) {
-  // Which slot index is dedicated to unconfigured minor/major (fixed at period 2 = index 1)
-  const UNCONFIGURED_MINOR_MAJOR_SLOT = 1;
-
   // Filter available subjects
   const availableSubjects = subjects.filter(subject => {
     const subjectId = subject._id.toString();
@@ -491,7 +488,7 @@ function findSuitableSubject(
       return false;
     }
 
-    const isMinorMajor = subject.subjectType === 'minor' || subject.subjectType === 'major';
+    const isMinorMajor = subject.subjectType === 'minor1' || subject.subjectType === 'minor2' || subject.subjectType === 'major';
     const isConfiguredMinorMajorType = isMinorMajor && configuredSubjectTypes.has(subject.subjectType);
     const configuredSlotIndex = prioritySlotByType.has(subject.subjectType)
       ? prioritySlotByType.get(subject.subjectType)
@@ -508,34 +505,26 @@ function findSuitableSubject(
       return false;
     }
 
-    // Unconfigured minor/major subjects can ONLY be scheduled in the dedicated slot
-    // (period 2, index 1).  Skip this restriction when we are running as a fallback
-    // for a priority slot — in that case slotIndex IS the priority position and we
-    // still want theory/lab/configured-minor-major subjects to fill it; unconfigured minor/major will be
-    // rejected below by the dedicated-slot check anyway.
-    if (!isFallbackForPrioritySlot) {
-      if (isMinorMajor && !isConfiguredMinorMajorType && slotIndex !== UNCONFIGURED_MINOR_MAJOR_SLOT) {
-        return false;
-      }
-
-      // Non-minor/major subjects should NOT occupy the dedicated minor/major slot
-      // while unconfigured minor/major subjects still have unscheduled hours.
-      if (slotIndex === UNCONFIGURED_MINOR_MAJOR_SLOT && subject.subjectType !== 'minor' && subject.subjectType !== 'major') {
-        const hasUnscheduledUnconfiguredMinorMajor = subjects.some(s => {
-          if (configuredSubjectTypes.has(s.subjectType)) return false;
-          const sId = s._id.toString();
-          const sScheduled = subjectHoursScheduled.get(sId);
-          return (s.subjectType === 'minor' || s.subjectType === 'major') && sScheduled < s.hoursPerWeek;
+    // For unconfigured minor/major subjects, allow them to be scheduled in any available slot
+    // but prefer to avoid slots that are configured for other subject types in this semester
+    if (!isFallbackForPrioritySlot && isMinorMajor && !isConfiguredMinorMajorType) {
+      // Check if this slot is configured for any subject type in this semester
+      const isSlotConfiguredForOtherType = Array.from(prioritySlotByType.values()).includes(slotIndex);
+      
+      // If this slot is configured for other types, only use it if no other slots are available
+      if (isSlotConfiguredForOtherType) {
+        // Check if there are other available slots for this subject by looking at remaining time slots
+        const totalSlots = 5; // We have 5 time slots per day
+        const hasOtherAvailableSlots = Array.from({ length: totalSlots }, (_, i) => i).some(otherSlotIndex => {
+          if (otherSlotIndex === slotIndex) return false;
+          const isOtherSlotConfigured = Array.from(prioritySlotByType.values()).includes(otherSlotIndex);
+          return !isOtherSlotConfigured;
         });
-        if (hasUnscheduledUnconfiguredMinorMajor) {
+        
+        // If there are other non-configured slots available, skip this configured slot
+        if (hasOtherAvailableSlots) {
           return false;
         }
-      }
-    } else {
-      // Fallback for a priority slot: unconfigured minor/major may only appear here
-      // if slotIndex happens to be their dedicated slot (index 1); otherwise skip them.
-      if (isMinorMajor && !isConfiguredMinorMajorType && slotIndex !== UNCONFIGURED_MINOR_MAJOR_SLOT) {
-        return false;
       }
     }
 
@@ -607,7 +596,8 @@ function generateRoomNumber(subjectType) {
     'theory': 'R',
     'lab': 'L',
     'practical': 'P',
-    'minor': 'R',
+    'minor1': 'R1',
+    'minor2': 'R2',
     'major': 'R'
   };
 

@@ -7,7 +7,7 @@ Created a new MinorMajor model and management system to configure department-spe
 
 ### 1. MinorMajor Model
 - **Department**: Which department the configuration applies to
-- **Subject Type**: Either 'minor' or 'major'
+- **Subject Type**: Either 'minor1', 'minor2', or 'major'
 - **Priority Slot**: Time slot number (1-5) where these subjects should be scheduled
 - **Description**: Optional description of the configuration
 - **Active Status**: Enable/disable configurations
@@ -17,7 +17,7 @@ Created a new MinorMajor model and management system to configure department-spe
 ```javascript
 {
   department: String (required),
-  subjectType: 'minor' | 'major' (required),
+  subjectType: 'minor1' | 'minor2' | 'major' (required),
   prioritySlot: Number (1-5, required),
   isActive: Boolean (default: true),
   description: String (optional),
@@ -46,7 +46,7 @@ Created a new MinorMajor model and management system to configure department-spe
 
 ### Query Parameters
 - `department` - Filter by department
-- `subjectType` - Filter by minor/major
+- `subjectType` - Filter by minor1/minor2/major
 - `isActive` - Filter by active status
 
 ## Frontend Management Interface
@@ -64,7 +64,7 @@ Created a new MinorMajor model and management system to configure department-spe
 - **Real-time Updates**: Immediate UI updates after operations
 
 ### 3. Visual Elements
-- **Color-coded Subject Types**: Blue for minor, purple for major
+- **Color-coded Subject Types**: Blue for minor1, cyan for minor2, purple for major
 - **Status Indicators**: Green for active, red for inactive
 - **Time Slot Labels**: Human-readable slot descriptions
 - **Action Icons**: Edit, delete, and toggle status icons
@@ -82,11 +82,13 @@ Slot 5: 5th Period (14:30-15:30)
 The seeder creates these default configurations:
 
 ### BCA Department
-- **Minor Subjects**: Priority Slot 2 (10:30-11:20)
+- **Minor1 Subjects**: Priority Slot 2 (10:30-11:20)
+- **Minor2 Subjects**: Priority Slot 3 (11:30-12:30)
 - **Major Subjects**: Priority Slot 2 (10:30-11:20)
 
 ### BCOM Department
-- **Minor Subjects**: Priority Slot 3 (11:30-12:30)
+- **Minor1 Subjects**: Priority Slot 3 (11:30-12:30)
+- **Minor2 Subjects**: Priority Slot 4 (13:30-14:30)
 - **Major Subjects**: Priority Slot 3 (11:30-12:30)
 
 ## Usage in Timetable Generation
@@ -106,7 +108,8 @@ const configs = await MinorMajor.find({
 });
 
 // Use priority slots during timetable generation
-const minorSlot = configs.find(c => c.subjectType === 'minor')?.prioritySlot;
+const minor1Slot = configs.find(c => c.subjectType === 'minor1')?.prioritySlot;
+const minor2Slot = configs.find(c => c.subjectType === 'minor2')?.prioritySlot;
 const majorSlot = configs.find(c => c.subjectType === 'major')?.prioritySlot;
 ```
 
@@ -119,7 +122,7 @@ const majorSlot = configs.find(c => c.subjectType === 'major')?.prioritySlot;
 
 ### Validation
 - Department must exist in the system
-- Subject type must be 'minor' or 'major'
+- Subject type must be 'minor1', 'minor2', or 'major'
 - Priority slot must be between 1 and 5
 - Unique constraint prevents duplicates
 

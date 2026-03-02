@@ -13,7 +13,7 @@ const MinorMajorManagement = () => {
   const [formData, setFormData] = useState({
     department: '',
     semester: 1,
-    subjectType: 'minor',
+    subjectType: 'minor1',
     prioritySlot: 1,
     description: '',
     isActive: true
@@ -150,7 +150,7 @@ const MinorMajorManagement = () => {
     setFormData({
       department: '',
       semester: 1,
-      subjectType: 'minor',
+      subjectType: 'minor1',
       prioritySlot: 1,
       description: '',
       isActive: true
@@ -230,8 +230,11 @@ const MinorMajorManagement = () => {
                       Sem {config.semester}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.subjectType === 'minor'
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        config.subjectType === 'minor1'
                           ? 'bg-blue-100 text-blue-800'
+                          : config.subjectType === 'minor2'
+                          ? 'bg-cyan-100 text-cyan-800'
                           : 'bg-purple-100 text-purple-800'
                         }`}>
                         {config.subjectType.toUpperCase()}
@@ -349,7 +352,8 @@ const MinorMajorManagement = () => {
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
                 >
-                  <option value="minor">Minor</option>
+                  <option value="minor1">Minor 1</option>
+                  <option value="minor2">Minor 2</option>
                   <option value="major">Major</option>
                 </select>
               </div>

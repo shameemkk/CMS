@@ -9,7 +9,7 @@ const minorMajorSchema = new mongoose.Schema(
     },
     subjectType: {
       type: String,
-      enum: ['minor', 'major'],
+      enum: ['minor1', 'minor2', 'major'],
       required: [true, 'Subject type is required'],
     },
     semester: {

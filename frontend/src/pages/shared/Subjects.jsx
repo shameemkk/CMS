@@ -491,7 +491,8 @@ const Subjects = () => {
                     <option value="theory">Theory</option>
                     <option value="lab">Lab</option>
                     <option value="practical">Practical</option>
-                    <option value="minor">Minor</option>
+                    <option value="minor1">Minor 1</option>
+                    <option value="minor2">Minor 2</option>
                     <option value="major">Major</option>
                   </select>
                 </div>
