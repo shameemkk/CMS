@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  BarChart3,
   Bell,
   BookOpen,
   CalendarCheck,
@@ -27,6 +28,7 @@ import Assignments from './Assignments';
 import Notifications from './Notifications';
 import Results from './Results';
 import BatchTutors from './BatchTutors';
+import AttendanceReport from './AttendanceReport';
 import Subjects from '../shared/Subjects';
 
 const Hod = () => {
@@ -46,6 +48,7 @@ const Hod = () => {
     { id: 'batch-tutors', label: 'Batch Tutors', icon: GraduationCap },
     { id: 'students', label: 'Students', icon: Users },
     { id: 'mark-attendance', label: 'Mark Attendance', icon: SquarePen },
+    { id: 'attendance-report', label: 'Attendance Report', icon: BarChart3 },
     { id: 'assignments', label: 'Assignments', icon: ClipboardList },
     { id: 'results', label: 'Results', icon: FileSpreadsheet },
     { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -76,6 +79,8 @@ const Hod = () => {
         return <Students />;
       case 'mark-attendance':
         return <MarkAttendance />;
+      case 'attendance-report':
+        return <AttendanceReport />;
       case 'assignments':
         return <Assignments />;
       case 'results':
