@@ -12,13 +12,25 @@ const minorMajorSchema = new mongoose.Schema(
       enum: ['minor', 'major'],
       required: [true, 'Subject type is required'],
     },
+    semester: {
+      type: Number,
+      required: [true, 'Semester is required'],
+      min: 1,
+      max: 8,
+      validate: {
+        validator: function (value) {
+          return Number.isInteger(value);
+        },
+        message: 'Semester must be an integer between 1 and 8'
+      }
+    },
     prioritySlot: {
       type: Number,
       required: [true, 'Priority slot is required'],
       min: 1,
       max: 5, // Assuming 5 time slots per day
       validate: {
-        validator: function(value) {
+        validator: function (value) {
           return Number.isInteger(value);
         },
         message: 'Priority slot must be an integer between 1 and 5'
@@ -45,11 +57,11 @@ const minorMajorSchema = new mongoose.Schema(
   }
 );
 
-// Compound index to ensure unique department + subjectType combination
-minorMajorSchema.index({ department: 1, subjectType: 1 }, { unique: true });
+// Compound index to ensure unique department + subjectType + semester combination
+minorMajorSchema.index({ department: 1, subjectType: 1, semester: 1 }, { unique: true });
 
 // Index for efficient queries
-minorMajorSchema.index({ department: 1, isActive: 1 });
+minorMajorSchema.index({ department: 1, semester: 1, isActive: 1 });
 minorMajorSchema.index({ prioritySlot: 1 });
 
 const MinorMajor = mongoose.model('MinorMajor', minorMajorSchema);

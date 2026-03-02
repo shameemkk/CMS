@@ -9,11 +9,12 @@ import { asyncHandler } from '../utils/asyncHandler.js';
  * @access  Admin only
  */
 export const getAllMinorMajor = asyncHandler(async (req, res) => {
-  const { department, subjectType, isActive } = req.query;
+  const { department, subjectType, isActive, semester } = req.query;
 
   const filter = {};
   if (department) filter.department = department;
   if (subjectType) filter.subjectType = subjectType;
+  if (semester) filter.semester = Number(semester);
   if (isActive !== undefined) filter.isActive = isActive === 'true';
 
   const minorMajorConfigs = await MinorMajor.find(filter)
@@ -49,11 +50,11 @@ export const getMinorMajorById = asyncHandler(async (req, res) => {
  * @access  Admin only
  */
 export const createMinorMajor = asyncHandler(async (req, res) => {
-  const { department, subjectType, prioritySlot, description } = req.body;
+  const { department, subjectType, prioritySlot, description, semester } = req.body;
 
   // Validation
-  if (!department || !subjectType || !prioritySlot) {
-    throw new ApiError(400, 'Department, subject type, and priority slot are required');
+  if (!department || !subjectType || !prioritySlot || !semester) {
+    throw new ApiError(400, 'Department, subject type, priority slot, and semester are required');
   }
 
   if (!['minor', 'major'].includes(subjectType)) {
@@ -64,20 +65,26 @@ export const createMinorMajor = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Priority slot must be between 1 and 5');
   }
 
-  // Check if configuration already exists for this department and subject type
+  if (semester < 1 || semester > 8) {
+    throw new ApiError(400, 'Semester must be between 1 and 8');
+  }
+
+  // Check if configuration already exists for this department, subjectType, and semester
   const existingConfig = await MinorMajor.findOne({
     department,
     subjectType,
+    semester,
   });
 
   if (existingConfig) {
-    throw new ApiError(400, `${subjectType} configuration already exists for ${department} department`);
+    throw new ApiError(400, `${subjectType} configuration already exists for ${department} department in semester ${semester}`);
   }
 
   // Create new configuration
   const minorMajorConfig = await MinorMajor.create({
     department,
     subjectType,
+    semester,
     prioritySlot,
     description,
     createdBy: req.user._id || 'admin',
@@ -95,7 +102,7 @@ export const createMinorMajor = asyncHandler(async (req, res) => {
  */
 export const updateMinorMajor = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { department, subjectType, prioritySlot, description, isActive } = req.body;
+  const { department, subjectType, prioritySlot, description, isActive, semester } = req.body;
 
   const minorMajorConfig = await MinorMajor.findById(id);
 
@@ -112,23 +119,30 @@ export const updateMinorMajor = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Priority slot must be between 1 and 5');
   }
 
-  // Check for duplicate if department or subjectType is being changed
-  if ((department && department !== minorMajorConfig.department) || 
-      (subjectType && subjectType !== minorMajorConfig.subjectType)) {
+  if (semester && (semester < 1 || semester > 8)) {
+    throw new ApiError(400, 'Semester must be between 1 and 8');
+  }
+
+  // Check for duplicate if department, subjectType, or semester is being changed
+  if ((department && department !== minorMajorConfig.department) ||
+    (subjectType && subjectType !== minorMajorConfig.subjectType) ||
+    (semester && semester !== minorMajorConfig.semester)) {
     const existingConfig = await MinorMajor.findOne({
       department: department || minorMajorConfig.department,
       subjectType: subjectType || minorMajorConfig.subjectType,
+      semester: semester || minorMajorConfig.semester,
       _id: { $ne: id }
     });
 
     if (existingConfig) {
-      throw new ApiError(400, `${subjectType || minorMajorConfig.subjectType} configuration already exists for ${department || minorMajorConfig.department} department`);
+      throw new ApiError(400, `${subjectType || minorMajorConfig.subjectType} configuration already exists for ${department || minorMajorConfig.department} department in semester ${semester || minorMajorConfig.semester}`);
     }
   }
 
   // Update fields
   if (department) minorMajorConfig.department = department;
   if (subjectType) minorMajorConfig.subjectType = subjectType;
+  if (semester) minorMajorConfig.semester = semester;
   if (prioritySlot) minorMajorConfig.prioritySlot = prioritySlot;
   if (description !== undefined) minorMajorConfig.description = description;
   if (isActive !== undefined) minorMajorConfig.isActive = isActive;
@@ -169,11 +183,18 @@ export const deleteMinorMajor = asyncHandler(async (req, res) => {
  */
 export const getMinorMajorByDepartment = asyncHandler(async (req, res) => {
   const { department } = req.params;
+  const { semester } = req.query;
 
-  const minorMajorConfigs = await MinorMajor.find({
+  const filter = {
     department,
     isActive: true
-  }).sort({ subjectType: 1, prioritySlot: 1 });
+  };
+
+  if (semester) {
+    filter.semester = Number(semester);
+  }
+
+  const minorMajorConfigs = await MinorMajor.find(filter).sort({ subjectType: 1, prioritySlot: 1 });
 
   res.status(200).json(
     new ApiResponse(200, minorMajorConfigs, `Minor/Major configurations for ${department} retrieved successfully`)

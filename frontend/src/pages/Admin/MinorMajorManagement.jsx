@@ -12,6 +12,7 @@ const MinorMajorManagement = () => {
   const [editingConfig, setEditingConfig] = useState(null);
   const [formData, setFormData] = useState({
     department: '',
+    semester: 1,
     subjectType: 'minor',
     prioritySlot: 1,
     description: '',
@@ -53,11 +54,11 @@ const MinorMajorManagement = () => {
       setDepartmentsLoading(true);
       const response = await api.departments.list();
       console.log('Departments response:', response);
-      
+
       // Department controller returns { success: true, data: [...] }
       const depts = response.data || [];
       setDepartments(depts);
-      
+
       if (depts.length === 0) {
         console.warn('No departments returned from API');
         // Fallback to known departments if API returns empty
@@ -71,7 +72,7 @@ const MinorMajorManagement = () => {
     } catch (error) {
       console.error('Error fetching departments:', error);
       toast.error('Failed to fetch departments');
-      
+
       // Fallback to known departments on error
       setDepartments([
         { code: 'BCA', name: 'Computer Application' },
@@ -88,7 +89,7 @@ const MinorMajorManagement = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      
+
       if (editingConfig) {
         await api.minorMajor.update(editingConfig._id, formData);
         toast.success('Configuration updated successfully');
@@ -96,7 +97,7 @@ const MinorMajorManagement = () => {
         await api.minorMajor.create(formData);
         toast.success('Configuration created successfully');
       }
-      
+
       handleCloseModal();
       fetchConfigs();
     } catch (error) {
@@ -110,6 +111,7 @@ const MinorMajorManagement = () => {
     setEditingConfig(config);
     setFormData({
       department: config.department,
+      semester: config.semester,
       subjectType: config.subjectType,
       prioritySlot: config.prioritySlot,
       description: config.description || '',
@@ -147,6 +149,7 @@ const MinorMajorManagement = () => {
     setEditingConfig(null);
     setFormData({
       department: '',
+      semester: 1,
       subjectType: 'minor',
       prioritySlot: 1,
       description: '',
@@ -185,6 +188,9 @@ const MinorMajorManagement = () => {
                   Department
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Semester
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Subject Type
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -221,11 +227,13 @@ const MinorMajorManagement = () => {
                       {config.department}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        config.subjectType === 'minor' 
-                          ? 'bg-blue-100 text-blue-800' 
+                      Sem {config.semester}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.subjectType === 'minor'
+                          ? 'bg-blue-100 text-blue-800'
                           : 'bg-purple-100 text-purple-800'
-                      }`}>
+                        }`}>
                         {config.subjectType.toUpperCase()}
                       </span>
                     </td>
@@ -236,11 +244,10 @@ const MinorMajorManagement = () => {
                       {config.description || 'No description'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        config.isActive 
-                          ? 'bg-green-100 text-green-800' 
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.isActive
+                          ? 'bg-green-100 text-green-800'
                           : 'bg-red-100 text-red-800'
-                      }`}>
+                        }`}>
                         {config.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
@@ -248,11 +255,10 @@ const MinorMajorManagement = () => {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleToggleStatus(config._id)}
-                          className={`p-1 rounded ${
-                            config.isActive 
-                              ? 'text-red-600 hover:text-red-800' 
+                          className={`p-1 rounded ${config.isActive
+                              ? 'text-red-600 hover:text-red-800'
                               : 'text-green-600 hover:text-green-800'
-                          }`}
+                            }`}
                           title={config.isActive ? 'Deactivate' : 'Activate'}
                         >
                           {config.isActive ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -290,7 +296,7 @@ const MinorMajorManagement = () => {
                 {editingConfig ? 'Edit Configuration' : 'Add Configuration'}
               </h2>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -315,6 +321,22 @@ const MinorMajorManagement = () => {
                 {departments.length === 0 && !departmentsLoading && (
                   <p className="text-sm text-red-600 mt-1">No departments found. Please add departments first.</p>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Semester *
+                </label>
+                <select
+                  value={formData.semester}
+                  onChange={(e) => setFormData({ ...formData, semester: parseInt(e.target.value) })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                    <option key={sem} value={sem}>Semester {sem}</option>
+                  ))}
+                </select>
               </div>
 
               <div>

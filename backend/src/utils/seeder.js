@@ -35,33 +35,33 @@ const seedData = async () => {
 
     // Create Departments
     const departmentsData = [
-      { 
-        name: 'Computer Application', 
-        code: 'BCA', 
-        description: 'Bachelor of Computer Applications - 6 Semester Program', 
-        createdBy: adminUser._id, 
-        status: 'active' 
+      {
+        name: 'Computer Application',
+        code: 'BCA',
+        description: 'Bachelor of Computer Applications - 6 Semester Program',
+        createdBy: adminUser._id,
+        status: 'active'
       },
-      { 
-        name: 'Commerce', 
-        code: 'BCOM', 
-        description: 'Bachelor of Commerce - 6 Semester Program', 
-        createdBy: adminUser._id, 
-        status: 'active' 
+      {
+        name: 'Commerce',
+        code: 'BCOM',
+        description: 'Bachelor of Commerce - 6 Semester Program',
+        createdBy: adminUser._id,
+        status: 'active'
       },
-      { 
-        name: 'Arts', 
-        code: 'BA', 
-        description: 'Bachelor of Arts - 6 Semester Program', 
-        createdBy: adminUser._id, 
-        status: 'active' 
+      {
+        name: 'Arts',
+        code: 'BA',
+        description: 'Bachelor of Arts - 6 Semester Program',
+        createdBy: adminUser._id,
+        status: 'active'
       },
-      { 
-        name: 'Science', 
-        code: 'BSC', 
-        description: 'Bachelor of Science - 6 Semester Program', 
-        createdBy: adminUser._id, 
-        status: 'active' 
+      {
+        name: 'Science',
+        code: 'BSC',
+        description: 'Bachelor of Science - 6 Semester Program',
+        createdBy: adminUser._id,
+        status: 'active'
       }
     ];
 
@@ -414,6 +414,7 @@ const seedData = async () => {
     const minorMajorConfigs = [
       {
         department: 'BCA',
+        semester: 3,
         subjectType: 'minor',
         prioritySlot: 2, // 2nd period (10:30-11:20)
         description: 'Minor subjects are scheduled in 2nd period for BCA department',
@@ -422,6 +423,7 @@ const seedData = async () => {
       },
       {
         department: 'BCA',
+        semester: 3,
         subjectType: 'major',
         prioritySlot: 2, // 2nd period (10:30-11:20)
         description: 'Major subjects are scheduled in 2nd period for BCA department',
@@ -430,6 +432,7 @@ const seedData = async () => {
       },
       {
         department: 'BCOM',
+        semester: 3,
         subjectType: 'minor',
         prioritySlot: 3, // 3rd period (11:30-12:30)
         description: 'Minor subjects are scheduled in 3rd period for BCOM department',
@@ -438,6 +441,7 @@ const seedData = async () => {
       },
       {
         department: 'BCOM',
+        semester: 3,
         subjectType: 'major',
         prioritySlot: 3, // 3rd period (11:30-12:30)
         description: 'Major subjects are scheduled in 3rd period for BCOM department',

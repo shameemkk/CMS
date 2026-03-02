@@ -151,7 +151,7 @@ const generateTimetable = asyncHandler(async (req, res) => {
     }).populate('timeSlots.teacher');
 
     // Fetch active MinorMajor configurations for this department
-    const minorMajorConfigs = await MinorMajor.find({ department, isActive: true });
+    const minorMajorConfigs = await MinorMajor.find({ department, semester, isActive: true });
     console.log('📊 MinorMajor configs found:', minorMajorConfigs.length, minorMajorConfigs.map(c => ({
       subjectType: c.subjectType,
       prioritySlot: c.prioritySlot
