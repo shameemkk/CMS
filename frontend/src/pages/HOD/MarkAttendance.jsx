@@ -313,8 +313,8 @@ const HodMarkAttendance = () => {
                       <span>{slot.startTime} - {slot.endTime}</span>
                     </div>
                     <div className="flex items-center">
-                      <MapPin className="w-3 h-3 mr-1" />
-                      <span>{slot.room}</span>
+                      <BookOpen className="w-3 h-3 mr-1" />
+                      <span className="capitalize font-medium">{slot.subjectType}</span>
                     </div>
                     <div className="text-xs font-medium text-gray-600 mt-2">
                       Teacher: {slot.teacher?.fullName}
@@ -341,7 +341,7 @@ const HodMarkAttendance = () => {
                   {selectedSlot.subject?.name} - {selectedSlot.department} Sem {selectedSlot.semester}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {new Date(selectedDate).toLocaleDateString()} | {selectedSlot.startTime} - {selectedSlot.endTime} | {selectedSlot.room}
+                  {new Date(selectedDate).toLocaleDateString()} | {selectedSlot.startTime} - {selectedSlot.endTime} | {selectedSlot.subjectType}
                 </p>
               </div>
               <button

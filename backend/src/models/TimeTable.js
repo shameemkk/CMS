@@ -24,7 +24,7 @@ const timeSlotSchema = new mongoose.Schema({
   },
   room: {
     type: String,
-    default: 'TBA',
+    default: '',
   },
   subjectType: {
     type: String,

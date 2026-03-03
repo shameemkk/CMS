@@ -196,7 +196,10 @@ const Timetable = () => {
                           <div className={`p-3 rounded-lg text-sm shadow-sm ${
                             slot.subjectType === 'lab' ? 'bg-blue-100 text-blue-900 border-l-4 border-blue-500' :
                             slot.subjectType === 'practical' ? 'bg-green-100 text-green-900 border-l-4 border-green-500' :
-                            'bg-purple-100 text-purple-900 border-l-4 border-purple-500'
+                            slot.subjectType === 'minor1' ? 'bg-orange-100 text-orange-900 border-l-4 border-orange-500' :
+                            slot.subjectType === 'minor2' ? 'bg-cyan-100 text-cyan-900 border-l-4 border-cyan-500' :
+                            slot.subjectType === 'major' ? 'bg-purple-100 text-purple-900 border-l-4 border-purple-500' :
+                            'bg-gray-100 text-gray-900 border-l-4 border-gray-500'
                           }`}>
                             <div className="font-semibold mb-1 flex items-center">
                               <BookOpen className="w-3 h-3 mr-1" />
@@ -362,7 +365,7 @@ const Timetable = () => {
         <h3 className="text-sm font-medium text-gray-900 mb-3">Legend</h3>
         <div className="flex flex-wrap gap-4">
           <div className="flex items-center">
-            <div className="w-4 h-4 bg-purple-100 border-l-4 border-purple-500 rounded mr-2"></div>
+            <div className="w-4 h-4 bg-gray-100 border-l-4 border-gray-500 rounded mr-2"></div>
             <span className="text-sm text-gray-700">Theory Classes</span>
           </div>
           <div className="flex items-center">
@@ -372,6 +375,18 @@ const Timetable = () => {
           <div className="flex items-center">
             <div className="w-4 h-4 bg-green-100 border-l-4 border-green-500 rounded mr-2"></div>
             <span className="text-sm text-gray-700">Practical Classes</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-orange-100 border-l-4 border-orange-500 rounded mr-2"></div>
+            <span className="text-sm text-gray-700">Minor 1 Subjects</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-cyan-100 border-l-4 border-cyan-500 rounded mr-2"></div>
+            <span className="text-sm text-gray-700">Minor 2 Subjects</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-purple-100 border-l-4 border-purple-500 rounded mr-2"></div>
+            <span className="text-sm text-gray-700">Major Subjects</span>
           </div>
         </div>
       </div>

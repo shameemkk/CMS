@@ -412,7 +412,16 @@ const seedData = async () => {
 
     // Create MinorMajor configurations for all semesters
     const minorMajorConfigs = [
-      // BCA Department - Semester 1 (Major subjects only)
+      // BCA Department - Semester 1 (Minor1 and Major subjects)
+      {
+        department: 'BCA',
+        semester: 1,
+        subjectType: 'minor1',
+        prioritySlot: 1, // 1st period (09:30-10:30)
+        description: 'Minor1 subjects are scheduled in 1st period for BCA Semester 1',
+        isActive: true,
+        createdBy: adminUser._id
+      },
       {
         department: 'BCA',
         semester: 1,

@@ -330,7 +330,6 @@ function generateTimeSlots(subjects, existingTimetables = [], minorMajorConfigs 
               endTime: timeSlot.endTime,
               isReserved: true,
               reservedLabel: `Reserved for ${subjectType.toUpperCase()}`,
-              room: 'TBA',
             });
             slotFilled = true;
           } else {
@@ -356,7 +355,6 @@ function generateTimeSlots(subjects, existingTimetables = [], minorMajorConfigs 
                 subject: suitableSubject._id,
                 teacher: suitableSubject.assignedTeacher._id,
                 subjectType: suitableSubject.subjectType,
-                room: generateRoomNumber(suitableSubject.subjectType),
               });
 
               subjectHoursScheduled.set(subjectId, subjectHoursScheduled.get(subjectId) + 1);
@@ -404,7 +402,6 @@ function generateTimeSlots(subjects, existingTimetables = [], minorMajorConfigs 
           subject: suitableSubject._id,
           teacher: suitableSubject.assignedTeacher._id,
           subjectType: suitableSubject.subjectType,
-          room: generateRoomNumber(suitableSubject.subjectType),
         });
 
         subjectHoursScheduled.set(subjectId, subjectHoursScheduled.get(subjectId) + 1);
@@ -588,23 +585,6 @@ function findSuitableSubject(
   }
 
   return availableSubjects[0];
-}
-
-// Helper function to generate room numbers
-function generateRoomNumber(subjectType) {
-  const roomPrefixes = {
-    'theory': 'R',
-    'lab': 'L',
-    'practical': 'P',
-    'minor1': 'R1',
-    'minor2': 'R2',
-    'major': 'R'
-  };
-
-  const prefix = roomPrefixes[subjectType] || 'R';
-  const roomNumber = Math.floor(Math.random() * 20) + 101; // Random room between 101-120
-
-  return `${prefix}-${roomNumber}`;
 }
 
 // Get timetable by department and semester
@@ -796,7 +776,6 @@ const updateTimetable = asyncHandler(async (req, res) => {
         endTime: slot.endTime,
         isReserved: true,
         reservedLabel: slot.reservedLabel || '',
-        room: 'TBA',
       };
     }
     return {
@@ -805,7 +784,6 @@ const updateTimetable = asyncHandler(async (req, res) => {
       endTime: slot.endTime,
       subject: slot.subject._id ? slot.subject._id : slot.subject,
       teacher: slot.teacher._id ? slot.teacher._id : slot.teacher,
-      room: slot.room,
       subjectType: slot.subjectType || 'theory',
     };
   });

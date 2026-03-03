@@ -458,7 +458,6 @@ const TimetableManagement = () => {
           endTime,
           subject: relatedSubject,
           teacher: relatedTeacher,
-          room: 'TBA',
           subjectType
         });
       }
@@ -535,11 +534,14 @@ const TimetableManagement = () => {
                           ) : (
                             <div className={`p-2 rounded text-xs ${slot.subjectType === 'lab' ? 'bg-blue-100 text-blue-800' :
                               slot.subjectType === 'practical' ? 'bg-green-100 text-green-800' :
-                                'bg-purple-100 text-purple-800'
+                              slot.subjectType === 'minor1' ? 'bg-orange-100 text-orange-800' :
+                              slot.subjectType === 'minor2' ? 'bg-cyan-100 text-cyan-800' :
+                              slot.subjectType === 'major' ? 'bg-purple-100 text-purple-800' :
+                                'bg-gray-100 text-gray-800'
                               }`}>
                               <div className="font-medium">{slot.subject?.name || subjects.find(s => s._id === slot.subject)?.name || 'Unknown'}</div>
                               <div className="text-xs mt-1">{slot.teacher?.fullName || teachers.find(t => (t.id || t._id) === slot.teacher)?.fullName || 'Unknown'}</div>
-                              <div className="text-xs">{slot.room}</div>
+                              <div className="text-xs font-semibold capitalize">{slot.subjectType || 'theory'}</div>
                             </div>
                           )
                         ) : (
