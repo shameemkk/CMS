@@ -267,6 +267,108 @@ const seedData = async () => {
     }
     console.log(`✓ ${createdTeachers.length} BCA Teachers created successfully`);
 
+    // Create Teachers for BCOM Department
+    const bcomTeachersData = [
+      {
+        fullName: 'Prof. Sanjay Mehta',
+        email: 'sanjay.mehta@college.edu',
+        phone: '9876543230',
+        department: 'BCOM',
+        role: 'teacher',
+        password: 'teacher123',
+        status: 'approved',
+        specialization: 'Financial Accounting'
+      },
+      {
+        fullName: 'Dr. Rekha Nair',
+        email: 'rekha.nair@college.edu',
+        phone: '9876543231',
+        department: 'BCOM',
+        role: 'teacher',
+        password: 'teacher123',
+        status: 'approved',
+        specialization: 'Business Economics'
+      },
+      {
+        fullName: 'Prof. Deepak Joshi',
+        email: 'deepak.joshi@college.edu',
+        phone: '9876543232',
+        department: 'BCOM',
+        role: 'teacher',
+        password: 'teacher123',
+        status: 'approved',
+        specialization: 'Business Mathematics'
+      },
+      {
+        fullName: 'Ms. Anita Desai',
+        email: 'anita.desai@college.edu',
+        phone: '9876543233',
+        department: 'BCOM',
+        role: 'teacher',
+        password: 'teacher123',
+        status: 'approved',
+        specialization: 'Business Communication'
+      },
+      {
+        fullName: 'Dr. Suresh Pillai',
+        email: 'suresh.pillai@college.edu',
+        phone: '9876543234',
+        department: 'BCOM',
+        role: 'teacher',
+        password: 'teacher123',
+        status: 'approved',
+        specialization: 'Law and Taxation'
+      },
+      {
+        fullName: 'Prof. Geeta Rao',
+        email: 'geeta.rao@college.edu',
+        phone: '9876543235',
+        department: 'BCOM',
+        role: 'teacher',
+        password: 'teacher123',
+        status: 'approved',
+        specialization: 'Management'
+      },
+      {
+        fullName: 'Dr. Krishnan Iyer',
+        email: 'krishnan.iyer@college.edu',
+        phone: '9876543236',
+        department: 'BCOM',
+        role: 'teacher',
+        password: 'teacher123',
+        status: 'approved',
+        specialization: 'Finance and Banking'
+      },
+      {
+        fullName: 'Prof. Divya Menon',
+        email: 'divya.menon@college.edu',
+        phone: '9876543237',
+        department: 'BCOM',
+        role: 'teacher',
+        password: 'teacher123',
+        status: 'approved',
+        specialization: 'Marketing and E-Commerce'
+      },
+      {
+        fullName: 'Mr. Ramesh Nambiar',
+        email: 'ramesh.nambiar@college.edu',
+        phone: '9876543238',
+        department: 'BCOM',
+        role: 'teacher',
+        password: 'teacher123',
+        status: 'approved',
+        specialization: 'IT and Office Automation'
+      }
+    ];
+
+    const createdBcomTeachers = [];
+    for (const teacherData of bcomTeachersData) {
+      const teacher = new User(teacherData);
+      await teacher.save();
+      createdBcomTeachers.push(teacher);
+    }
+    console.log(`✓ ${createdBcomTeachers.length} BCOM Teachers created successfully`);
+
     // Create Students for BCA Department
     const bcaBatch = createdBatches.find((batch) => batch.department === 'BCA');
     const bcaStudentsData = [
@@ -327,6 +429,67 @@ const seedData = async () => {
       await student.save();
     }
     console.log(`✓ ${bcaStudentsData.length} BCA Students created successfully`);
+
+    // Create Students for BCOM Department
+    const bcomBatch = createdBatches.find((batch) => batch.department === 'BCOM');
+    const bcomStudentsData = [
+      {
+        fullName: 'Aisha Khan',
+        email: 'aisha.khan@student.edu',
+        registrationNumber: 'BCOM2024001',
+        department: 'BCOM',
+        batch: bcomBatch?.batchCode,
+        role: 'student',
+        password: 'student123',
+        status: 'approved'
+      },
+      {
+        fullName: 'Rahul Nair',
+        email: 'rahul.nair@student.edu',
+        registrationNumber: 'BCOM2024002',
+        department: 'BCOM',
+        batch: bcomBatch?.batchCode,
+        role: 'student',
+        password: 'student123',
+        status: 'approved'
+      },
+      {
+        fullName: 'Priya Menon',
+        email: 'priya.menon@student.edu',
+        registrationNumber: 'BCOM2024003',
+        department: 'BCOM',
+        batch: bcomBatch?.batchCode,
+        role: 'student',
+        password: 'student123',
+        status: 'approved'
+      },
+      {
+        fullName: 'Siddharth Pillai',
+        email: 'siddharth.pillai@student.edu',
+        registrationNumber: 'BCOM2024004',
+        department: 'BCOM',
+        batch: bcomBatch?.batchCode,
+        role: 'student',
+        password: 'student123',
+        status: 'approved'
+      },
+      {
+        fullName: 'Anjali Verma',
+        email: 'anjali.verma@student.edu',
+        registrationNumber: 'BCOM2024005',
+        department: 'BCOM',
+        batch: bcomBatch?.batchCode,
+        role: 'student',
+        password: 'student123',
+        status: 'approved'
+      }
+    ];
+
+    for (const studentData of bcomStudentsData) {
+      const student = new User(studentData);
+      await student.save();
+    }
+    console.log(`✓ ${bcomStudentsData.length} BCOM Students created successfully`);
 
     // BCA Subjects Data (6 Semester Program)
     const bcaSubjectsData = [
@@ -586,7 +749,7 @@ const seedData = async () => {
     console.log(`   - Admin Users: 1`);
     console.log(`   - HODs: ${createdHODs.length}`);
     console.log(`   - Teachers: ${createdTeachers.length}`);
-    console.log(`   - Students: ${bcaStudentsData.length}`);
+    console.log(`   - Students: ${bcaStudentsData.length + bcomStudentsData.length} (BCA: ${bcaStudentsData.length}, BCOM: ${bcomStudentsData.length})`);
     console.log(`   - Subjects: ${createdSubjects.length}`);
     console.log(`   - MinorMajor Configs: ${createdMinorMajorConfigs.length}`);
 
