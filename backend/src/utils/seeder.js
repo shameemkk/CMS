@@ -409,6 +409,79 @@ const seedData = async () => {
 
     console.log(`✓ ${createdSubjects.length} BCA Subjects created successfully with assigned teachers`);
 
+    // BCOM Subjects Data (6 Semester Program)
+    const bcomSubjectsData = [
+      // Semester 1
+      { name: 'Financial Accounting', code: 'BCOM101', semester: 1, credits: 4, hoursPerWeek: 5, subjectType: 'major' },
+      { name: 'Business Organization', code: 'BCOM102', semester: 1, credits: 4, hoursPerWeek: 4, subjectType: 'theory' },
+      { name: 'Business Economics', code: 'BCOM103', semester: 1, credits: 4, hoursPerWeek: 4, subjectType: 'theory' },
+      { name: 'Business Mathematics', code: 'BCOM104', semester: 1, credits: 4, hoursPerWeek: 4, subjectType: 'theory' },
+      { name: 'Business Communication', code: 'BCOM105', semester: 1, credits: 3, hoursPerWeek: 3, subjectType: 'theory' },
+      { name: 'Accounting Practical', code: 'BCOM106', semester: 1, credits: 2, hoursPerWeek: 3, subjectType: 'practical' },
+
+      // Semester 2
+      { name: 'Advanced Financial Accounting', code: 'BCOM201', semester: 2, credits: 4, hoursPerWeek: 5, subjectType: 'major' },
+      { name: 'Corporate Law', code: 'BCOM202', semester: 2, credits: 4, hoursPerWeek: 4, subjectType: 'theory' },
+      { name: 'Business Statistics', code: 'BCOM203', semester: 2, credits: 4, hoursPerWeek: 4, subjectType: 'theory' },
+      { name: 'Principles of Management', code: 'BCOM204', semester: 2, credits: 4, hoursPerWeek: 4, subjectType: 'theory' },
+      { name: 'Environmental Studies', code: 'BCOM205', semester: 2, credits: 2, hoursPerWeek: 2, subjectType: 'theory' },
+      { name: 'Office Automation Lab', code: 'BCOM206', semester: 2, credits: 2, hoursPerWeek: 3, subjectType: 'lab' },
+
+      // Semester 3
+      { name: 'Corporate Accounting', code: 'BCOM301', semester: 3, credits: 4, hoursPerWeek: 5, subjectType: 'major' },
+      { name: 'Cost Accounting', code: 'BCOM302', semester: 3, credits: 4, hoursPerWeek: 4, subjectType: 'major' },
+      { name: 'Banking Theory and Practice', code: 'BCOM303', semester: 3, credits: 4, hoursPerWeek: 4, subjectType: 'theory' },
+      { name: 'Income Tax Law and Practice', code: 'BCOM304', semester: 3, credits: 4, hoursPerWeek: 4, subjectType: 'minor1' },
+      { name: 'Entrepreneurship Development', code: 'BCOM305', semester: 3, credits: 3, hoursPerWeek: 3, subjectType: 'minor2' },
+      { name: 'Tally Lab', code: 'BCOM306', semester: 3, credits: 2, hoursPerWeek: 3, subjectType: 'lab' },
+
+      // Semester 4
+      { name: 'Management Accounting', code: 'BCOM401', semester: 4, credits: 4, hoursPerWeek: 4, subjectType: 'major' },
+      { name: 'Auditing', code: 'BCOM402', semester: 4, credits: 4, hoursPerWeek: 4, subjectType: 'theory' },
+      { name: 'Business Regulatory Framework', code: 'BCOM403', semester: 4, credits: 4, hoursPerWeek: 4, subjectType: 'theory' },
+      { name: 'E-Commerce', code: 'BCOM404', semester: 4, credits: 4, hoursPerWeek: 4, subjectType: 'theory' },
+      { name: 'Human Resource Management', code: 'BCOM405', semester: 4, credits: 3, hoursPerWeek: 3, subjectType: 'theory' },
+      { name: 'E-Commerce Lab', code: 'BCOM406', semester: 4, credits: 2, hoursPerWeek: 3, subjectType: 'lab' },
+
+      // Semester 5
+      { name: 'Income Tax Procedures', code: 'BCOM501', semester: 5, credits: 4, hoursPerWeek: 4, subjectType: 'theory' },
+      { name: 'Goods and Services Tax', code: 'BCOM502', semester: 5, credits: 4, hoursPerWeek: 4, subjectType: 'major' },
+      { name: 'Financial Management', code: 'BCOM503', semester: 5, credits: 4, hoursPerWeek: 4, subjectType: 'theory' },
+      { name: 'Marketing Management', code: 'BCOM504', semester: 5, credits: 4, hoursPerWeek: 4, subjectType: 'theory' },
+      { name: 'Computerized Accounting', code: 'BCOM505', semester: 5, credits: 3, hoursPerWeek: 3, subjectType: 'practical' },
+      { name: 'Research Methodology', code: 'BCOM506', semester: 5, credits: 3, hoursPerWeek: 3, subjectType: 'theory' },
+
+      // Semester 6
+      { name: 'International Business', code: 'BCOM601', semester: 6, credits: 4, hoursPerWeek: 4, subjectType: 'theory' },
+      { name: 'Indirect Tax', code: 'BCOM602', semester: 6, credits: 4, hoursPerWeek: 4, subjectType: 'major' },
+      { name: 'Investment Management', code: 'BCOM603', semester: 6, credits: 4, hoursPerWeek: 4, subjectType: 'theory' },
+      { name: 'Project Work', code: 'BCOM604', semester: 6, credits: 6, hoursPerWeek: 6, subjectType: 'practical' },
+      { name: 'Viva Voce', code: 'BCOM605', semester: 6, credits: 2, hoursPerWeek: 2, subjectType: 'practical' },
+      { name: 'Business Analytics', code: 'BCOM606', semester: 6, credits: 3, hoursPerWeek: 3, subjectType: 'theory' }
+    ];
+
+    const bcomHOD = createdHODs.find(hod => hod.department === 'BCOM');
+
+    for (const subjectData of bcomSubjectsData) {
+      const subject = new Subject({
+        name: subjectData.name,
+        code: subjectData.code,
+        department: 'BCOM',
+        semester: subjectData.semester,
+        credits: subjectData.credits,
+        hoursPerWeek: subjectData.hoursPerWeek,
+        subjectType: subjectData.subjectType,
+        assignedTeacher: null,
+        createdBy: bcomHOD._id,
+        status: 'active'
+      });
+
+      await subject.save();
+      createdSubjects.push(subject);
+    }
+
+    console.log(`âœ“ ${bcomSubjectsData.length} BCOM Subjects created successfully`);
+
     // Create MinorMajor configurations for all semesters
     const minorMajorConfigs = [
       // BCA Department - Semester 1 (Minor1 and Major subjects)
