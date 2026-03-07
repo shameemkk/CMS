@@ -1,0 +1,232 @@
+===========================================================
+   TIMETABLE GENERATION ALGORITHM - BEGINNER EXPLANATION
+===========================================================
+
+Written for: Beginners with no prior algorithm knowledge
+Based on: CMS Project (backend/src/controllers/timetable.controller.js)
+
+
+-----------------------------------------------------------
+WHAT IS THE PROBLEM WE ARE SOLVING?
+-----------------------------------------------------------
+
+Imagine you have:
+  - A list of SUBJECTS (e.g., Math, Physics, Lab)
+  - A list of TEACHERS (each assigned to a subject)
+  - 5 DAYS per week (Mon - Fri)
+  - 5 TIME SLOTS per day (periods 1 to 5)
+
+You need to fill in a timetable grid like this:
+
+          | Period 1 | Period 2 | Period 3 | Period 4 | Period 5 |
+  --------|----------|----------|----------|----------|----------|
+  Monday  |   ???    |   ???    |   ???    |   ???    |   ???    |
+  Tuesday |   ???    |   ???    |   ???    |   ???    |   ???    |
+  ...     |   ...    |   ...    |   ...    |   ...    |   ...    |
+
+RULES you must follow:
+  1. A teacher cannot teach TWO classes at the SAME time.
+  2. Every subject must get its required number of hours per week.
+  3. Lab subjects should be placed in back-to-back (consecutive) slots.
+  4. Special subjects (minor/major) get reserved/priority slots.
+
+This is the problem. The algorithm below solves it.
+
+
+-----------------------------------------------------------
+THE TIME SLOTS (Fixed Schedule)
+-----------------------------------------------------------
+
+Each day has exactly 5 periods:
+
+  Period 1: 09:30 - 10:30
+  Period 2: 10:30 - 11:20
+  Period 3: 11:30 - 12:30   (after a short break)
+  Period 4: 13:30 - 14:30   (after lunch)
+  Period 5: 14:30 - 15:30
+
+So the full timetable grid = 5 days x 5 periods = 25 slots total.
+
+
+-----------------------------------------------------------
+BIG PICTURE: HOW THE ALGORITHM WORKS (3 STEPS)
+-----------------------------------------------------------
+
+STEP 1: TRY to generate a timetable (up to 10 times)
+STEP 2: Keep the BEST result from all attempts
+STEP 3: Report any subjects that did not get enough hours
+
+
+Let's go deeper into each step.
+
+
+-----------------------------------------------------------
+STEP 1: GENERATE ONE TIMETABLE ATTEMPT
+-----------------------------------------------------------
+
+The main function is called generateTimeSlots().
+It loops through every day and every period in that day.
+
+  FOR each day (Monday to Friday):
+    FOR each period (1 to 5):
+
+      A) Is this a PRIORITY SLOT for a special subject (minor/major)?
+         --> If YES, try to place that special subject here.
+         --> If that subject has no hours left, mark slot as RESERVED.
+
+      B) Otherwise, pick the BEST normal subject to place here.
+         --> Use findSuitableSubject() to choose.
+
+      C) Check: Is the chosen subject's teacher ALREADY teaching
+         at this time in another class?
+         --> If YES, skip. Do not place it. Leave slot empty.
+         --> If NO, place it! Record teacher as busy at this time.
+
+After the loop, you have a filled (or partially filled) timetable.
+
+
+-----------------------------------------------------------
+HOW THE ALGORITHM PICKS A SUBJECT (findSuitableSubject)
+-----------------------------------------------------------
+
+When we reach an empty slot, we need to decide WHICH subject to place.
+The algorithm SORTS subjects by priority:
+
+  Priority 1 (highest): Subjects with MORE remaining hours needed
+                         (they are behind schedule -- place them first)
+
+  Priority 2: Among equal, prefer subjects already scheduled LESS
+              (balance the workload)
+
+  Priority 3: Among equal, prefer subjects with MORE total hours
+              (important subjects get priority)
+
+  Special case for LABS:
+    Labs prefer consecutive slots (period 3 & 4 together, etc.)
+    If consecutive slot is NOT available, skip for now.
+
+  Special subjects (minor/major):
+    They are NOT picked during normal scheduling.
+    They are only placed in their PRIORITY slots (handled separately).
+
+  Randomness:
+    If multiple subjects have the exact same priority score,
+    the algorithm RANDOMLY picks one. This is why running it
+    multiple times gives different results.
+
+
+-----------------------------------------------------------
+HOW TEACHER CONFLICTS ARE PREVENTED
+-----------------------------------------------------------
+
+The algorithm keeps a record called "teacherSchedule" (like a diary).
+
+  teacherSchedule[teacherID][day][period] = true/false
+
+Before placing a subject in a slot:
+  CHECK: Is teacherSchedule[teacher][day][period] already TRUE?
+    --> YES? Teacher is busy. Skip this subject for this slot.
+    --> NO?  Teacher is free. Place subject. Mark as TRUE.
+
+Also: Teachers from ODD semesters (1,3,5,7) share a conflict pool.
+      Teachers from EVEN semesters (2,4,6,8) share another.
+      This prevents a teacher from teaching two different classes
+      at the same time.
+
+
+-----------------------------------------------------------
+STEP 2: TRY 10 TIMES, KEEP THE BEST
+-----------------------------------------------------------
+
+Because of randomness, each attempt gives a different timetable.
+The algorithm runs up to 10 attempts and keeps the BEST one.
+
+What is "best"?
+  1. Fewest missing subject hours (lowest deficit)
+  2. If deficit is equal, more total slots filled
+
+If any attempt achieves ZERO deficit (all hours scheduled perfectly),
+it stops early and uses that result immediately.
+
+This is called a "multi-attempt retry with best-result selection."
+
+
+-----------------------------------------------------------
+STEP 3: REPORT MISSING HOURS
+-----------------------------------------------------------
+
+After generation, the algorithm checks:
+  For each subject:
+    Required hours per week = X
+    Actually scheduled hours = Y
+    Deficit = X - Y
+
+If deficit > 0, a WARNING is returned to the user:
+  "Subject [Math] is missing 2 hours this week."
+
+The admin can then manually edit the timetable to fix it.
+
+
+-----------------------------------------------------------
+SUMMARY: THE ALGORITHM IN PLAIN ENGLISH
+-----------------------------------------------------------
+
+1. Loop through every slot (25 total: 5 days x 5 periods).
+
+2. For each slot:
+   a. If it is a reserved priority slot -> place special subject.
+   b. Otherwise -> find the subject most "behind schedule"
+      that doesn't cause a teacher conflict.
+   c. Place it. Mark teacher as busy.
+
+3. Repeat this whole process up to 10 times.
+
+4. Keep the attempt with the fewest missing hours.
+
+5. Warn the admin about any subjects still missing hours.
+
+
+-----------------------------------------------------------
+TYPE OF ALGORITHM
+-----------------------------------------------------------
+
+This is called a:
+
+  GREEDY ALGORITHM   --> At each slot, pick the locally best subject.
+  + RANDOMIZATION    --> Random tiebreaking enables different results.
+  + RETRY STRATEGY   --> Run multiple times, keep best result.
+
+It is NOT:
+  - Genetic Algorithm (no evolution/crossover)
+  - Backtracking Search (no undoing previous choices)
+  - Integer Linear Programming (no math solver)
+
+It is simple, fast, and practical for small-to-medium timetables.
+
+
+-----------------------------------------------------------
+GLOSSARY (Simple Definitions)
+-----------------------------------------------------------
+
+Greedy Algorithm   : At every step, make the choice that looks best
+                     RIGHT NOW, without planning far ahead.
+
+Deficit            : The number of hours a subject still needs but
+                     hasn't been scheduled yet.
+
+Priority Slot      : A specific period reserved for special subjects
+                     (minor/major) configured by the admin.
+
+Consecutive Slots  : Two periods back-to-back (e.g., Period 3 & 4).
+                     Labs need this because they are 2 hours long.
+
+Fisher-Yates Shuffle: A standard method to randomly reorder a list.
+                      Used here to randomize subject selection.
+
+Teacher Conflict   : When one teacher is assigned to two classes
+                     at the exact same time. This is not allowed.
+
+
+-----------------------------------------------------------
+END OF DOCUMENT
+===========================================================
