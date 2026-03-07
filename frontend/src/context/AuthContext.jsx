@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { api } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -86,6 +87,7 @@ export const AuthProvider = ({ children }) => {
     api.auth.logout();
     setUser(null);
     localStorage.removeItem(USER_KEY);
+    toast.success('Logged out successfully');
   };
 
   const value = useMemo(

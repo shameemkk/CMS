@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -119,8 +120,10 @@ const Subjects = () => {
 
       if (editingSubject) {
         await api.subjects.update(editingSubject._id, formData);
+        toast.success('Subject updated successfully');
       } else {
         await api.subjects.create(formData);
+        toast.success('Subject created successfully');
       }
 
       await loadSubjects();
@@ -136,6 +139,7 @@ const Subjects = () => {
         status: 'active',
       });
     } catch (err) {
+      toast.error(err.message || 'Failed to save subject');
       setError(err.message || 'Failed to save subject');
     } finally {
       setLoading(false);
@@ -164,8 +168,10 @@ const Subjects = () => {
     try {
       setLoading(true);
       await api.subjects.remove(id);
+      toast.success('Subject deleted successfully');
       await loadSubjects();
     } catch (err) {
+      toast.error(err.message || 'Failed to delete subject');
       setError(err.message || 'Failed to delete subject');
     } finally {
       setLoading(false);
@@ -200,11 +206,13 @@ const Subjects = () => {
       await api.subjects.update(assigningSubject._id, {
         assignedTeacher: selectedTeacher || null
       });
+      toast.success('Teacher assigned successfully');
       await loadSubjects();
       setShowAssignModal(false);
       setAssigningSubject(null);
       setSelectedTeacher('');
     } catch (err) {
+      toast.error(err.message || 'Failed to assign teacher');
       setError(err.message || 'Failed to assign teacher');
     } finally {
       setLoading(false);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
@@ -80,23 +81,23 @@ const Register = () => {
     const requiredField = isStudent ? formData.registrationNumber : formData.phone;
     
     if (!formData.fullName || !formData.email || !requiredField || !formData.password || !formData.department || !formData.accountType) {
-      setError('Please fill in all fields');
+      toast.error('Please fill in all fields');
       return;
     }
 
     // Validate batch for students
     if (formData.accountType === 'Student' && !formData.batch) {
-      setError('Please select a batch');
+      toast.error('Please select a batch');
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
+      toast.error('Password must be at least 6 characters long');
       return;
     }
 
@@ -120,6 +121,7 @@ const Register = () => {
       }
 
       await register(registrationData);
+      toast.success('Registration successful! Please wait for admin approval.');
       setSuccess('Registration successful. Please wait for admin approval.');
       setFormData({
         fullName: '',
@@ -134,6 +136,7 @@ const Register = () => {
       });
       setTimeout(() => navigate('/login'), 1200);
     } catch (err) {
+      toast.error(err.message || 'Registration failed. Please try again.');
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);

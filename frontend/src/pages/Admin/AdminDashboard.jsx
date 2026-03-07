@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import {
   BookOpen,
   Building2,
@@ -56,8 +57,10 @@ const AdminDashboard = () => {
     try {
       setLoading(true);
       await api.users.updateStatus(id, status);
+      toast.success(`User ${status} successfully`);
       await loadPendingUsers();
     } catch (err) {
+      toast.error(err.message || 'Failed to update user status');
       setError(err.message || 'Failed to update user status');
     } finally {
       setLoading(false);

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -37,19 +38,19 @@ const LeaveRequests = () => {
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!reason.trim()) {
-      setError('Reason is required.');
+      toast.error('Reason is required');
       return;
     }
     if (!startDate) {
-      setError('Start date is required.');
+      toast.error('Start date is required');
       return;
     }
     if (!endDate) {
-      setError('End date is required.');
+      toast.error('End date is required');
       return;
     }
     if (new Date(endDate) < new Date(startDate)) {
-      setError('End date must be after or equal to start date.');
+      toast.error('End date must be after or equal to start date');
       return;
     }
     try {
@@ -59,12 +60,14 @@ const LeaveRequests = () => {
         startDate,
         endDate
       });
+      toast.success('Leave request submitted successfully');
       setReason('');
       setStartDate('');
       setEndDate('');
       setError('');
       loadRequests();
     } catch (err) {
+      toast.error(err.message || 'Failed to submit leave request');
       setError(err.message || 'Failed to submit leave request');
     } finally {
       setLoading(false);
@@ -76,8 +79,10 @@ const LeaveRequests = () => {
     try {
       setLoading(true);
       await api.leaveRequests.remove(id);
+      toast.success('Leave request deleted');
       loadRequests();
     } catch (err) {
+      toast.error(err.message || 'Failed to delete leave request');
       setError(err.message || 'Failed to delete leave request');
     } finally {
       setLoading(false);
@@ -88,8 +93,10 @@ const LeaveRequests = () => {
     try {
       setLoading(true);
       await api.leaveRequests.updateStatus(id, { status });
+      toast.success(`Leave request ${status}`);
       loadRequests();
     } catch (err) {
+      toast.error(err.message || 'Failed to update leave request');
       setError(err.message || 'Failed to update leave request');
     } finally {
       setLoading(false);

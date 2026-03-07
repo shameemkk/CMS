@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -76,12 +77,15 @@ const Notifications = () => {
       };
       if (editingId) {
         await api.notifications.update(editingId, payload);
+        toast.success('Notification updated successfully');
       } else {
         await api.notifications.create(payload);
+        toast.success('Notification created successfully');
       }
       handleCancel();
       loadNotifications();
     } catch (err) {
+      toast.error(err.message || 'Failed to save notification');
       setError(err.message || 'Failed to save notification');
     } finally {
       setLoading(false);
@@ -93,8 +97,10 @@ const Notifications = () => {
     try {
       setLoading(true);
       await api.notifications.remove(id);
+      toast.success('Notification deleted successfully');
       loadNotifications();
     } catch (err) {
+      toast.error(err.message || 'Failed to delete notification');
       setError(err.message || 'Failed to delete notification');
     } finally {
       setLoading(false);

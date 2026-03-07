@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -75,7 +76,9 @@ const Profile = () => {
       setProfileData(response.user || profileData);
       setIsEditMode(false);
       refreshUser();
+      toast.success('Profile updated successfully');
     } catch (err) {
+      toast.error(err.message || 'Failed to update profile');
       setError(err.message || 'Failed to update profile');
     } finally {
       setLoading(false);
@@ -96,11 +99,11 @@ const Profile = () => {
   const handleChangePassword = async (e) => {
     e.preventDefault();
     if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-      setPasswordError('All password fields are required.');
+      toast.error('All password fields are required');
       return;
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setPasswordError('New passwords do not match.');
+      toast.error('New passwords do not match');
       return;
     }
     try {
@@ -110,9 +113,11 @@ const Profile = () => {
         newPassword: passwordForm.newPassword,
         confirmPassword: passwordForm.confirmPassword,
       });
+      toast.success('Password updated successfully');
       setPasswordMessage('Password updated successfully.');
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err) {
+      toast.error(err.message || 'Failed to update password');
       setPasswordError(err.message || 'Failed to update password');
     } finally {
       setLoading(false);

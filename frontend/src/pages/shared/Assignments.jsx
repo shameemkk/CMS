@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -112,6 +113,7 @@ const Assignments = () => {
           dueDate: form.dueDate,
           marks: Number(form.marks),
         });
+        toast.success('Assignment updated successfully');
       } else {
         await api.assignments.create({
           subject: form.subject,
@@ -119,11 +121,13 @@ const Assignments = () => {
           dueDate: form.dueDate,
           marks: Number(form.marks),
         });
+        toast.success('Assignment created successfully');
       }
       setForm(emptyForm);
       setEditingId(null);
       loadAssignments();
     } catch (err) {
+      toast.error(err.message || 'Failed to save assignment');
       setError(err.message || 'Failed to save assignment');
     } finally {
       setLoading(false);
@@ -135,8 +139,10 @@ const Assignments = () => {
     try {
       setLoading(true);
       await api.assignments.remove(id);
+      toast.success('Assignment deleted successfully');
       loadAssignments();
     } catch (err) {
+      toast.error(err.message || 'Failed to delete assignment');
       setError(err.message || 'Failed to delete assignment');
     } finally {
       setLoading(false);
