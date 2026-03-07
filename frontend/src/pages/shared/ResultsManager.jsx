@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -86,7 +87,7 @@ const ResultsManager = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.studentId || !form.examId || !form.subject || form.marks === '') {
-      setError('All fields are required.');
+      toast.error('All fields are required');
       return;
     }
     try {
@@ -97,9 +98,11 @@ const ResultsManager = () => {
         subject: form.subject,
         marks: Number(form.marks),
       });
+      toast.success('Result saved successfully');
       setForm({ studentId: '', examId: '', subject: '', marks: '' });
       loadData();
     } catch (err) {
+      toast.error(err.message || 'Failed to save result');
       setError(err.message || 'Failed to save result');
     } finally {
       setLoading(false);
@@ -111,8 +114,10 @@ const ResultsManager = () => {
     try {
       setLoading(true);
       await api.results.remove(id);
+      toast.success('Result deleted successfully');
       loadData();
     } catch (err) {
+      toast.error(err.message || 'Failed to delete result');
       setError(err.message || 'Failed to delete result');
     } finally {
       setLoading(false);

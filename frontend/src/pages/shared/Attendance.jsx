@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -222,10 +223,12 @@ const Attendance = () => {
         timeSlot: markSlot,
         records,
       });
+      toast.success('Attendance marked successfully');
       await loadRecords();
       setShowStudentModal(false);
       setNameModalStudent(null);
     } catch (err) {
+      toast.error(err.message || 'Failed to mark attendance');
       setError(err.message || 'Failed to mark attendance');
     } finally {
       setLoading(false);

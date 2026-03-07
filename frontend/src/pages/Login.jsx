@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
@@ -33,15 +34,17 @@ const Login = () => {
 
     // Basic validation
     if (!formData.email || !formData.password) {
-      setError('Please fill in all fields');
+      toast.error('Please fill in all fields');
       return;
     }
 
     try {
       setLoading(true);
       const loggedInUser = await login(formData);
+      toast.success(`Welcome back, ${loggedInUser.fullName || loggedInUser.role}!`);
       navigate(`/${loggedInUser.role}`);
     } catch (err) {
+      toast.error(err.message || 'Login failed. Please try again.');
       setError(err.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);

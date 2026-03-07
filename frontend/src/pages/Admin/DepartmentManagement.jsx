@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 
 const DepartmentManagement = () => {
@@ -42,14 +43,17 @@ const DepartmentManagement = () => {
         try {
             if (editId) {
                 await api.departments.update(editId, formData);
+                toast.success('Department updated successfully');
             } else {
                 await api.departments.create(formData);
+                toast.success('Department created successfully');
             }
             setShowForm(false);
             setFormData({ name: '', code: '', description: '', status: 'active' });
             setEditId(null);
             loadDepartments();
         } catch (err) {
+            toast.error(err.message || 'Failed to save department');
             setError(err.message || 'Failed to save department');
         }
     };
@@ -69,8 +73,10 @@ const DepartmentManagement = () => {
         if (window.confirm('Are you sure you want to delete this department?')) {
             try {
                 await api.departments.remove(id);
+                toast.success('Department deleted successfully');
                 loadDepartments();
             } catch (err) {
+                toast.error(err.message || 'Failed to delete department');
                 setError(err.message || 'Failed to delete department');
             }
         }

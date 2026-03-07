@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 
 const BatchManagement = () => {
@@ -67,6 +68,7 @@ const BatchManagement = () => {
     try {
       setLoading(true);
       await api.batches.create(formData);
+      toast.success('Batch created successfully');
       setShowModal(false);
       setFormData({
         department: '',
@@ -77,6 +79,7 @@ const BatchManagement = () => {
       await loadBatches();
       setError('');
     } catch (err) {
+      toast.error(err.message || 'Failed to create batch');
       setError(err.message || 'Failed to create batch');
     } finally {
       setLoading(false);
@@ -89,9 +92,11 @@ const BatchManagement = () => {
     try {
       setLoading(true);
       await api.batches.remove(id);
+      toast.success('Batch deleted successfully');
       await loadBatches();
       setError('');
     } catch (err) {
+      toast.error(err.message || 'Failed to delete batch');
       setError(err.message || 'Failed to delete batch');
     } finally {
       setLoading(false);
@@ -110,11 +115,13 @@ const BatchManagement = () => {
     try {
       setLoading(true);
       await api.batches.update(editingBatch._id, { semester: parseInt(editingBatch.semester) });
+      toast.success('Semester updated successfully');
       setShowEditModal(false);
       setEditingBatch(null);
       await loadBatches();
       setError('');
     } catch (err) {
+      toast.error(err.message || 'Failed to update batch');
       setError(err.message || 'Failed to update batch');
     } finally {
       setLoading(false);

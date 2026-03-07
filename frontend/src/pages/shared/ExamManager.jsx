@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Eye } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -182,7 +183,7 @@ const ExamManager = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.examName || !form.semester || form.subjects.length === 0) {
-      setError('Exam name, semester, and at least one subject are required.');
+      toast.error('Exam name, semester, and at least one subject are required');
       return;
     }
 
@@ -190,13 +191,13 @@ const ExamManager = () => {
       (subject) => !subject.subjectId || !subject.date || !subject.startTime || !subject.endTime
     );
     if (hasIncompleteSubject) {
-      setError('Each subject must include subject, date, start time, and end time.');
+      toast.error('Each subject must include subject, date, start time, and end time');
       return;
     }
 
     const hasInvalidRange = form.subjects.some((subject) => subject.startTime >= subject.endTime);
     if (hasInvalidRange) {
-      setError('End time must be later than start time for each subject.');
+      toast.error('End time must be later than start time for each subject');
       return;
     }
 
@@ -224,13 +225,16 @@ const ExamManager = () => {
       };
       if (editingId) {
         await api.exams.update(editingId, payload);
+        toast.success('Exam updated successfully');
       } else {
         await api.exams.create(payload);
+        toast.success('Exam created successfully');
       }
       handleCancel();
       loadExams();
       setError('');
     } catch (err) {
+      toast.error(err.message || 'Failed to save exam');
       setError(err.message || 'Failed to save exam');
     } finally {
       setLoading(false);
@@ -242,8 +246,10 @@ const ExamManager = () => {
     try {
       setLoading(true);
       await api.exams.remove(id);
+      toast.success('Exam deleted successfully');
       loadExams();
     } catch (err) {
+      toast.error(err.message || 'Failed to delete exam');
       setError(err.message || 'Failed to delete exam');
     } finally {
       setLoading(false);
