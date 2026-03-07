@@ -440,10 +440,10 @@ const Attendance = () => {
                         <span className="text-gray-800 font-medium">{nameModalStudent.semester}</span>
                       </div>
                     )}
-                    {nameModalStudent.phone && (
+                    {nameModalStudent.registrationNumber && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Phone</span>
-                        <span className="text-gray-800 font-medium">{nameModalStudent.phone}</span>
+                        <span className="text-gray-500">Registration Number</span>
+                        <span className="text-gray-800 font-medium uppercase">{nameModalStudent.registrationNumber}</span>
                       </div>
                     )}
                     {nameModalStudent.rollNumber && (

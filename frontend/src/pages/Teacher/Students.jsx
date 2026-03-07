@@ -28,7 +28,7 @@ const Students = () => {
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (student.phone || '').toLowerCase().includes(searchTerm.toLowerCase());
+                         (student.registrationNumber || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
   
@@ -54,7 +54,7 @@ const Students = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <input
             type="text"
-            placeholder="Search by name, email, or phone..."
+            placeholder="Search by name, email, or registration number..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
@@ -79,7 +79,7 @@ const Students = () => {
               <tr className="bg-gray-100">
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Phone</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Reg. Number</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Department</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
               </tr>
@@ -96,7 +96,7 @@ const Students = () => {
                   <tr key={student.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-800">{student.fullName}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{student.email}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{student.phone}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 uppercase">{student.registrationNumber || '-'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{student.department}</td>
                     <td className="px-4 py-3 text-sm">
                       <button
@@ -142,8 +142,8 @@ const Students = () => {
                     <p className="text-gray-800">{selectedStudent.email}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Phone</label>
-                    <p className="text-gray-800">{selectedStudent.phone}</p>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">Registration Number</label>
+                    <p className="text-gray-800 uppercase">{selectedStudent.registrationNumber || '-'}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-1">Department</label>

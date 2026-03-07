@@ -1,7 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
 import { api } from '../../services/api';
 import { toast } from 'react-hot-toast';
-import { ArrowUp } from 'lucide-react';
 
 const HodStudents = () => {
   const [students, setStudents] = useState([]);
@@ -10,7 +9,6 @@ const HodStudents = () => {
   const [editingStudent, setEditingStudent] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [loading, setLoading] = useState(false);
-  const [promoting, setPromoting] = useState(false);
   const [error, setError] = useState('');
 
   const loadStudents = async () => {
@@ -30,30 +28,12 @@ const HodStudents = () => {
     loadStudents();
   }, []);
 
-  const handlePromoteAll = async () => {
-    if (!window.confirm('Are you sure you want to promote all students to the next semester? Students in semester 8 will be marked as passout.')) {
-      return;
-    }
-
-    try {
-      setPromoting(true);
-      const response = await api.users.promoteStudents();
-      toast.success(response.message);
-      await loadStudents(); // Reload students to show updated data
-    } catch (err) {
-      toast.error(err.message || 'Failed to promote students');
-    } finally {
-      setPromoting(false);
-    }
-  };
-
   const handleEdit = (student) => {
     setEditingStudent(student);
     setEditForm({
       fullName: student.fullName,
       email: student.email,
-      phone: student.phone,
-      semester: student.semester,
+      registrationNumber: student.registrationNumber,
     });
   };
 
@@ -98,7 +78,7 @@ const HodStudents = () => {
     return (
       student.fullName.toLowerCase().includes(query) ||
       student.email.toLowerCase().includes(query) ||
-      (student.phone || '').toLowerCase().includes(query) ||
+      (student.registrationNumber || '').toLowerCase().includes(query) ||
       (student.semester?.toString() || '').includes(query)
     );
   });
@@ -118,30 +98,13 @@ const HodStudents = () => {
           <h1 className="text-3xl font-bold text-[#6e0718] mb-2">Students</h1>
           <p className="text-gray-600">Manage and view all students in your department.</p>
         </div>
-        <button
-          onClick={handlePromoteAll}
-          disabled={promoting || students.length === 0}
-          className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {promoting ? (
-            <>
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-              Promoting...
-            </>
-          ) : (
-            <>
-              <ArrowUp className="w-5 h-5" />
-              Promote All Students
-            </>
-          )}
-        </button>
       </div>
 
       <div className="bg-white rounded-xl shadow-md p-6">
         <div className="mb-4">
           <input
             type="text"
-            placeholder="Search by name, email, phone, or semester..."
+            placeholder="Search by name, email, registration number, or semester..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
@@ -172,7 +135,7 @@ const HodStudents = () => {
               <tr className="bg-gray-100">
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Phone</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Reg. Number</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Department</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Semester</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
@@ -192,7 +155,7 @@ const HodStudents = () => {
                     <tr key={student.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm text-gray-800 font-medium">{student.fullName}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{student.email}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{student.phone}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 uppercase">{student.registrationNumber || '-'}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{student.department}</td>
                       <td className="px-4 py-3 text-sm">
                         <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
@@ -251,8 +214,8 @@ const HodStudents = () => {
                 <p className="text-gray-800">{selectedStudent.email}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Phone</label>
-                <p className="text-gray-800">{selectedStudent.phone}</p>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Registration Number</label>
+                <p className="text-gray-800 uppercase">{selectedStudent.registrationNumber || '-'}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">Department</label>
@@ -316,34 +279,28 @@ const HodStudents = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone <span className="text-red-500">*</span>
+                    Registration Number <span className="text-red-500">*</span>
                   </label>
                   <input
-                    type="tel"
-                    name="phone"
-                    value={editForm.phone || ''}
+                    type="text"
+                    name="registrationNumber"
+                    value={editForm.registrationNumber || ''}
                     onChange={handleEditChange}
                     required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718] uppercase"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Semester <span className="text-red-500">*</span>
+                    Batch
                   </label>
-                  <select
-                    name="semester"
-                    value={editForm.semester || ''}
-                    onChange={handleEditChange}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
-                      <option key={sem} value={sem}>
-                        Semester {sem}
-                      </option>
-                    ))}
-                  </select>
+                  <input
+                    type="text"
+                    value={editingStudent.batch || '-'}
+                    disabled
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed uppercase"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Semester is managed at batch level</p>
                 </div>
               </div>
               <div className="mt-6 flex justify-end gap-3">

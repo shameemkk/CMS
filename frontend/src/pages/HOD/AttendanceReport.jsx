@@ -8,9 +8,10 @@ const TABS = [
   { id: 'hourly', label: 'Hourly' },
   { id: 'monthly', label: 'Monthly' },
   { id: 'date-wise', label: 'Date Wise' },
+  { id: 'term-wise', label: 'Term Wise' },
 ];
 
-const CSV_EXPORT_ALLOWED_TABS = new Set(['hourly', 'monthly', 'date-wise']);
+const CSV_EXPORT_ALLOWED_TABS = new Set(['hourly', 'monthly', 'date-wise', 'term-wise']);
 
 const MONTHS = [
   { value: 0, label: 'January' },
@@ -142,6 +143,8 @@ const AttendanceReport = () => {
   );
   const [rangeEndDate, setRangeEndDate] = useState(getToday());
 
+  const [selectedSemester, setSelectedSemester] = useState('all');
+
   useEffect(() => {
     const loadData = async () => {
       if (!user?.department) return;
@@ -169,6 +172,16 @@ const AttendanceReport = () => {
   }, [user?.department]);
 
   const batchOptions = useMemo(() => {
+    // For teachers, only show batches where they are the tutor
+    if (user?.role === 'teacher') {
+      return batches
+        .filter(batch => batch.tutor?._id === user?.id)
+        .map(batch => normalizeBatch(batch.batchCode))
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    }
+
+    // For HOD/Admin, show all batches in department
     const set = new Set();
 
     batches.forEach((batch) => {
@@ -182,7 +195,7 @@ const AttendanceReport = () => {
     });
 
     return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  }, [batches, students]);
+  }, [batches, students, user?.role, user?.id]);
 
   useEffect(() => {
     if (!selectedBatch && batchOptions.length > 0) {
@@ -201,11 +214,18 @@ const AttendanceReport = () => {
   }, [studentsInBatch]);
 
   const batchAttendance = useMemo(() => {
-    return attendance.filter((record) => {
+    let filtered = attendance.filter((record) => {
       const userId = record?.userId?._id || record?.userId;
       return userId && studentIdSet.has(userId.toString());
     });
-  }, [attendance, studentIdSet]);
+
+    // Apply semester filter if selected
+    if (selectedSemester !== 'all') {
+      filtered = filtered.filter(record => record.semester === parseInt(selectedSemester));
+    }
+
+    return filtered;
+  }, [attendance, studentIdSet, selectedSemester]);
 
   const dailyAttendance = useMemo(() => {
     return batchAttendance.filter((record) => dateOnly(record.date) === dailyDate);
@@ -373,23 +393,32 @@ const AttendanceReport = () => {
       return date.getFullYear() === Number(monthlyYear) && date.getMonth() === Number(monthlyMonth);
     });
 
-    const uniqueSessions = new Set(
-      monthRecords.map((record) => `${dateOnly(record.date)}|${record.timeSlot}`)
+    // Count unique dates (days) instead of sessions
+    const uniqueDates = new Set(
+      monthRecords.map((record) => dateOnly(record.date))
     );
-    const maxHours = uniqueSessions.size;
+    const maxDays = uniqueDates.size;
 
     return studentsInBatch.map((student, index) => {
       const studentRecords = monthRecords.filter(
         (record) => (record?.userId?._id || record?.userId)?.toString() === student.id
       );
-      const present = studentRecords.filter((record) => record.status === 'present').length;
-      const percentage = maxHours > 0 ? ((present / maxHours) * 100).toFixed(1) : '0.0';
+      
+      // Count unique days student was present
+      const presentDates = new Set(
+        studentRecords
+          .filter((record) => record.status === 'present')
+          .map((record) => dateOnly(record.date))
+      );
+      const presentDays = presentDates.size;
+      
+      const percentage = maxDays > 0 ? ((presentDays / maxDays) * 100).toFixed(1) : '0.0';
 
       return {
         no: index + 1,
         name: student.fullName,
-        present,
-        maxHours,
+        presentDays,
+        maxDays,
         percentage,
       };
     });
@@ -424,6 +453,35 @@ const AttendanceReport = () => {
       };
     });
   }, [batchAttendance, studentsInBatch, rangeStartDate, rangeEndDate]);
+
+  const termWiseRows = useMemo(() => {
+    const semesterFilter = selectedSemester === 'all' ? null : parseInt(selectedSemester);
+    
+    const termRecords = semesterFilter 
+      ? batchAttendance.filter(record => record.semester === semesterFilter)
+      : batchAttendance;
+
+    return studentsInBatch.map((student, index) => {
+      const studentRecords = termRecords.filter(
+        (record) => (record?.userId?._id || record?.userId)?.toString() === student.id
+      );
+      const present = studentRecords.filter((record) => record.status === 'present').length;
+      const late = studentRecords.filter((record) => record.status === 'late').length;
+      const absent = studentRecords.filter((record) => record.status === 'absent').length;
+      const total = studentRecords.length;
+      const percentage = total > 0 ? (((present + late) / total) * 100).toFixed(1) : '0.0';
+
+      return {
+        no: index + 1,
+        name: student.fullName,
+        present,
+        late,
+        absent,
+        total,
+        percentage,
+      };
+    });
+  }, [batchAttendance, studentsInBatch, selectedSemester]);
 
   const activeTabLabel = useMemo(() => {
     return TABS.find((tab) => tab.id === activeTab)?.label || activeTab;
@@ -482,11 +540,11 @@ const AttendanceReport = () => {
     }
 
     if (activeTab === 'monthly') {
-      rows.push(['Year', monthlyYear], ['Month', MONTHS[Number(monthlyMonth)]?.label || String(monthlyMonth)], [], ['No', 'Name', 'Present', 'Max Hours', 'Percentage']);
+      rows.push(['Year', monthlyYear], ['Month', MONTHS[Number(monthlyMonth)]?.label || String(monthlyMonth)], [], ['No', 'Name', 'Present Days', 'Max Days', 'Percentage']);
       if (monthlyRows.length === 0) {
         rows.push(['', 'No records found', '', '', '']);
       } else {
-        monthlyRows.forEach((row) => rows.push([row.no, row.name, row.present, row.maxHours, `${row.percentage}%`]));
+        monthlyRows.forEach((row) => rows.push([row.no, row.name, row.presentDays, row.maxDays, `${row.percentage}%`]));
       }
       return rows;
     }
@@ -497,6 +555,16 @@ const AttendanceReport = () => {
         rows.push(['', 'No records found', '', '', '', '', '']);
       } else {
         dateWiseRows.forEach((row) => rows.push([row.no, row.name, row.present, row.late, row.absent, row.total, `${row.percentage}%`]));
+      }
+      return rows;
+    }
+
+    if (activeTab === 'term-wise') {
+      rows.push(['Semester Filter', selectedSemester === 'all' ? 'All Semesters' : `Semester ${selectedSemester}`], [], ['No', 'Name', 'Present', 'Late', 'Absent', 'Total', 'Percentage']);
+      if (termWiseRows.length === 0) {
+        rows.push(['', 'No records found', '', '', '', '', '']);
+      } else {
+        termWiseRows.forEach((row) => rows.push([row.no, row.name, row.present, row.late, row.absent, row.total, `${row.percentage}%`]));
       }
       return rows;
     }
@@ -522,22 +590,46 @@ const AttendanceReport = () => {
 
       <div className="bg-white rounded-xl shadow-md p-6">
         <div className="flex flex-wrap gap-4 items-end">
+          {user?.role === 'teacher' ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Assigned Batch</label>
+              <div className="px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg min-w-[240px] text-gray-800 font-medium">
+                {selectedBatch || 'No batch assigned'}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Select Batch</label>
+              <select
+                value={selectedBatch}
+                onChange={(e) => setSelectedBatch(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg min-w-[240px] focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
+              >
+                {batchOptions.length === 0 ? (
+                  <option value="">No Batch Found</option>
+                ) : (
+                  batchOptions.map((batchCode) => (
+                    <option key={batchCode} value={batchCode}>
+                      {batchCode}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+          )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Select Batch</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Semester Filter</label>
             <select
-              value={selectedBatch}
-              onChange={(e) => setSelectedBatch(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg min-w-[240px] focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
+              value={selectedSemester}
+              onChange={(e) => setSelectedSemester(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
             >
-              {batchOptions.length === 0 ? (
-                <option value="">No Batch Found</option>
-              ) : (
-                batchOptions.map((batchCode) => (
-                  <option key={batchCode} value={batchCode}>
-                    {batchCode}
-                  </option>
-                ))
-              )}
+              <option value="all">All Semesters</option>
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+                <option key={sem} value={sem}>
+                  Semester {sem}
+                </option>
+              ))}
             </select>
           </div>
           <div className="text-sm text-gray-600">
@@ -833,8 +925,8 @@ const AttendanceReport = () => {
                     <tr className="bg-gray-100">
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">No</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Present</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Max Hours</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Present Days</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Max Days</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">%</th>
                     </tr>
                   </thead>
@@ -850,8 +942,8 @@ const AttendanceReport = () => {
                         <tr key={`${row.no}-${row.name}`} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm text-gray-800">{row.no}</td>
                           <td className="px-4 py-3 text-sm text-gray-800 font-medium">{row.name}</td>
-                          <td className="px-4 py-3 text-sm text-green-700">{row.present}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{row.maxHours}</td>
+                          <td className="px-4 py-3 text-sm text-green-700">{row.presentDays}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{row.maxDays}</td>
                           <td className="px-4 py-3 text-sm text-gray-700">{row.percentage}%</td>
                         </tr>
                       ))
@@ -910,6 +1002,54 @@ const AttendanceReport = () => {
                       </tr>
                     ) : (
                       dateWiseRows.map((row) => (
+                        <tr key={`${row.no}-${row.name}`} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm text-gray-800">{row.no}</td>
+                          <td className="px-4 py-3 text-sm text-gray-800 font-medium">{row.name}</td>
+                          <td className="px-4 py-3 text-sm text-green-700">{row.present}</td>
+                          <td className="px-4 py-3 text-sm text-yellow-700">{row.late}</td>
+                          <td className="px-4 py-3 text-sm text-red-700">{row.absent}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{row.total}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{row.percentage}%</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'term-wise' && (
+            <div className="bg-white rounded-xl shadow-md p-6 space-y-5">
+              <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  📊 Viewing attendance for {selectedSemester === 'all' ? 'all semesters' : `Semester ${selectedSemester}`}. 
+                  Use the semester filter above to view specific semester data.
+                </p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">No</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Present</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Late</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Absent</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Total</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">%</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {termWiseRows.length === 0 ? (
+                      <tr>
+                        <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
+                          No data found for selected semester.
+                        </td>
+                      </tr>
+                    ) : (
+                      termWiseRows.map((row) => (
                         <tr key={`${row.no}-${row.name}`} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm text-gray-800">{row.no}</td>
                           <td className="px-4 py-3 text-sm text-gray-800 font-medium">{row.name}</td>

@@ -16,28 +16,33 @@ const userSchema = new mongoose.Schema(
       trim: true,
       match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email'],
     },
+    registrationNumber: {
+      type: String,
+      required: function () {
+        return this.role === 'student';
+      },
+      trim: true,
+      uppercase: true,
+      sparse: true, // Allow null for non-students
+    },
     phone: {
       type: String,
-      required: [true, 'Phone number is required'],
+      required: function () {
+        return this.role !== 'student';
+      },
       trim: true,
     },
     department: {
       type: String,
       required: [true, 'Department is required'],
     },
-    semester: {
-      type: Number,
-      min: 1,
-      max: 8,
-      // Only required for students
-      required: function () {
-        return this.role === 'student';
-      }
-    },
     batch: {
       type: String,
       trim: true,
       uppercase: true,
+      required: function () {
+        return this.role === 'student';
+      },
     },
     role: {
       type: String,

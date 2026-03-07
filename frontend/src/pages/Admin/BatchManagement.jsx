@@ -7,10 +7,13 @@ const BatchManagement = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingBatch, setEditingBatch] = useState(null);
   const [formData, setFormData] = useState({
     department: '',
     startDate: '',
     endDate: '',
+    semester: '',
   });
   const [batchPreview, setBatchPreview] = useState('');
 
@@ -69,6 +72,7 @@ const BatchManagement = () => {
         department: '',
         startDate: '',
         endDate: '',
+        semester: '',
       });
       await loadBatches();
       setError('');
@@ -89,6 +93,29 @@ const BatchManagement = () => {
       setError('');
     } catch (err) {
       setError(err.message || 'Failed to delete batch');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (batch) => {
+    setEditingBatch(batch);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateSemester = async (e) => {
+    e.preventDefault();
+    if (!editingBatch) return;
+
+    try {
+      setLoading(true);
+      await api.batches.update(editingBatch._id, { semester: parseInt(editingBatch.semester) });
+      setShowEditModal(false);
+      setEditingBatch(null);
+      await loadBatches();
+      setError('');
+    } catch (err) {
+      setError(err.message || 'Failed to update batch');
     } finally {
       setLoading(false);
     }
@@ -140,6 +167,7 @@ const BatchManagement = () => {
               <tr className="bg-gray-100">
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Batch Code</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Department</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Semester</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Duration</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
@@ -148,13 +176,13 @@ const BatchManagement = () => {
             <tbody className="divide-y divide-gray-200">
               {loading && batches.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
                     Loading batches...
                   </td>
                 </tr>
               ) : batches.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
                     No batches found. Create your first batch!
                   </td>
                 </tr>
@@ -163,6 +191,7 @@ const BatchManagement = () => {
                   <tr key={batch._id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-800 font-medium uppercase">{batch.batchCode}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 uppercase">{batch.department || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{batch.semester || '-'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{getDuration(batch)}</td>
                     <td className="px-4 py-3 text-sm">
                       <span
@@ -178,13 +207,22 @@ const BatchManagement = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <button
-                        onClick={() => handleDelete(batch._id)}
-                        disabled={loading}
-                        className="text-red-600 hover:text-red-800 font-medium disabled:opacity-50"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(batch)}
+                          disabled={loading}
+                          className="text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(batch._id)}
+                          disabled={loading}
+                          className="text-red-600 hover:text-red-800 font-medium disabled:opacity-50"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -241,6 +279,26 @@ const BatchManagement = () => {
                   )}
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Semester <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="semester"
+                    value={formData.semester}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6e0718] focus:border-transparent"
+                    required
+                  >
+                    <option value="">Select Semester</option>
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+                      <option key={sem} value={sem}>
+                        Semester {sem}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -294,6 +352,87 @@ const BatchManagement = () => {
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
                   >
                     {loading ? 'Creating...' : 'Create'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+      {showEditModal && editingBatch && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-[#6e0718]">Edit Batch Semester</h2>
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingBatch(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateSemester} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Batch Code
+                  </label>
+                  <div className="w-full px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-700 font-medium">
+                    {editingBatch.batchCode}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Current Semester: <span className="font-bold text-[#6e0718]">Semester {editingBatch.semester}</span>
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    New Semester <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={editingBatch.semester}
+                    onChange={(e) => setEditingBatch({ ...editingBatch, semester: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6e0718] focus:border-transparent"
+                    required
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+                      <option key={sem} value={sem}>
+                        Semester {sem}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    ⚠️ Changing the semester will affect all students in this batch.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setEditingBatch(null);
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
+                  >
+                    {loading ? 'Updating...' : 'Update'}
                   </button>
                 </div>
               </form>

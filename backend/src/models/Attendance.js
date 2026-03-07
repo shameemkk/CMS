@@ -41,6 +41,12 @@ const attendanceSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Department is required'],
     },
+    semester: {
+      type: Number,
+      min: 1,
+      max: 8,
+      required: false,
+    },
   },
   {
     timestamps: true,

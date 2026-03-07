@@ -79,6 +79,7 @@ const seedData = async () => {
         department: 'BCA',
         startDate: new Date('2024-06-01'),
         endDate: new Date('2027-05-31'),
+        semester: 3,
         status: 'active',
         createdBy: adminUser._id
       },
@@ -86,6 +87,7 @@ const seedData = async () => {
         department: 'BCOM',
         startDate: new Date('2024-06-01'),
         endDate: new Date('2027-05-31'),
+        semester: 3,
         status: 'active',
         createdBy: adminUser._id
       },
@@ -93,6 +95,7 @@ const seedData = async () => {
         department: 'BA',
         startDate: new Date('2024-06-01'),
         endDate: new Date('2027-05-31'),
+        semester: 3,
         status: 'active',
         createdBy: adminUser._id
       },
@@ -100,6 +103,7 @@ const seedData = async () => {
         department: 'BSC',
         startDate: new Date('2024-06-01'),
         endDate: new Date('2027-05-31'),
+        semester: 3,
         status: 'active',
         createdBy: adminUser._id
       }
@@ -269,10 +273,9 @@ const seedData = async () => {
       {
         fullName: 'Aarav Sharma',
         email: 'aarav.sharma@student.edu',
-        phone: '9876543230',
+        registrationNumber: 'BCA2024001',
         department: 'BCA',
         batch: bcaBatch?.batchCode,
-        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -280,10 +283,9 @@ const seedData = async () => {
       {
         fullName: 'Vivaan Patel',
         email: 'vivaan.patel@student.edu',
-        phone: '9876543231',
+        registrationNumber: 'BCA2024002',
         department: 'BCA',
         batch: bcaBatch?.batchCode,
-        semester: 1,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -291,10 +293,9 @@ const seedData = async () => {
       {
         fullName: 'Aditya Kumar',
         email: 'aditya.kumar@student.edu',
-        phone: '9876543232',
+        registrationNumber: 'BCA2024003',
         department: 'BCA',
         batch: bcaBatch?.batchCode,
-        semester: 3,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -302,10 +303,9 @@ const seedData = async () => {
       {
         fullName: 'Vihaan Singh',
         email: 'vihaan.singh@student.edu',
-        phone: '9876543233',
+        registrationNumber: 'BCA2024004',
         department: 'BCA',
         batch: bcaBatch?.batchCode,
-        semester: 3,
         role: 'student',
         password: 'student123',
         status: 'approved'
@@ -313,10 +313,9 @@ const seedData = async () => {
       {
         fullName: 'Arjun Gupta',
         email: 'arjun.gupta@student.edu',
-        phone: '9876543234',
+        registrationNumber: 'BCA2024005',
         department: 'BCA',
         batch: bcaBatch?.batchCode,
-        semester: 5,
         role: 'student',
         password: 'student123',
         status: 'approved'

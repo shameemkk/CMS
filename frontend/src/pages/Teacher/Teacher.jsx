@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell,
@@ -13,8 +13,10 @@ import {
   SquarePen,
   UserCircle2,
   Users,
+  BarChart3,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { api } from '../../services/api';
 import Dashboard from './Dashboard';
 import Profile from './Profile';
 import Exam from './Exam';
@@ -25,13 +27,32 @@ import Assignments from './Assignments';
 import Notifications from './Notifications';
 import LeaveRequests from './LeaveRequests';
 import Results from './Results';
+import AttendanceReport from '../HOD/AttendanceReport';
 
 const Teacher = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isBatchTutor, setIsBatchTutor] = useState(false);
   const username = user?.fullName || 'Teacher';
+
+  useEffect(() => {
+    const checkBatchTutor = async () => {
+      try {
+        const response = await api.batches.list({ department: user?.department });
+        const batches = response.data || [];
+        const isAssigned = batches.some(batch => batch.tutor?._id === user?.id);
+        setIsBatchTutor(isAssigned);
+      } catch (err) {
+        console.error('Failed to check batch tutor status', err);
+      }
+    };
+
+    if (user?.id) {
+      checkBatchTutor();
+    }
+  }, [user?.id, user?.department]);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard Overview', icon: LayoutDashboard },
@@ -40,6 +61,7 @@ const Teacher = () => {
     { id: 'exam', label: 'Exam', icon: NotebookPen },
     { id: 'students', label: 'Students', icon: Users },
     { id: 'mark-attendance', label: 'Mark Attendance', icon: SquarePen },
+    ...(isBatchTutor ? [{ id: 'attendance-report', label: 'Attendance Report', icon: BarChart3 }] : []),
     { id: 'assignments', label: 'Assignments', icon: ClipboardList },
     { id: 'results', label: 'Results', icon: FileSpreadsheet },
     { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -65,6 +87,8 @@ const Teacher = () => {
         return <Students />;
       case 'mark-attendance':
         return <MarkAttendance />;
+      case 'attendance-report':
+        return isBatchTutor ? <AttendanceReport /> : <div className="bg-white rounded-xl shadow-md p-8 text-center text-gray-500">Access denied. Only batch tutors can view attendance reports.</div>;
       case 'assignments':
         return <Assignments />;
       case 'results':

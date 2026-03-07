@@ -29,7 +29,7 @@ const UsersByRole = ({ role, title, description }) => {
     return (
       user.fullName.toLowerCase().includes(query) ||
       user.email.toLowerCase().includes(query) ||
-      (user.phone || '').toLowerCase().includes(query)
+      (user.registrationNumber || user.phone || '').toLowerCase().includes(query)
     );
   });
 
@@ -46,7 +46,7 @@ const UsersByRole = ({ role, title, description }) => {
         <div className="mb-4">
           <input
             type="text"
-            placeholder="Search by name, email, or phone..."
+            placeholder={`Search by name, email, or ${role === 'student' ? 'registration number' : 'phone'}...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
@@ -63,7 +63,7 @@ const UsersByRole = ({ role, title, description }) => {
               <tr className="bg-gray-100">
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Phone</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">{role === 'student' ? 'Reg. Number' : 'Phone'}</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Department</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
               </tr>
@@ -80,7 +80,9 @@ const UsersByRole = ({ role, title, description }) => {
                   <tr key={user.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-800 font-medium">{user.fullName}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{user.email}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{user.phone}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 uppercase">
+                      {role === 'student' ? (user.registrationNumber || '-') : (user.phone || '-')}
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{user.department}</td>
                     <td className="px-4 py-3 text-sm">
                       <button
@@ -120,8 +122,12 @@ const UsersByRole = ({ role, title, description }) => {
                 <p className="text-gray-800">{selectedUser.email}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Phone</label>
-                <p className="text-gray-800">{selectedUser.phone}</p>
+                <label className="block text-sm font-medium text-gray-600 mb-1">
+                  {role === 'student' ? 'Registration Number' : 'Phone'}
+                </label>
+                <p className="text-gray-800 uppercase">
+                  {role === 'student' ? (selectedUser.registrationNumber || '-') : (selectedUser.phone || '-')}
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">Department</label>

@@ -8,6 +8,7 @@ const BatchTutors = () => {
   const [batches, setBatches] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [selectedTutors, setSelectedTutors] = useState({});
+  const [editingSemester, setEditingSemester] = useState({});
   const [loading, setLoading] = useState(false);
   const [savingBatchId, setSavingBatchId] = useState('');
   const [error, setError] = useState('');
@@ -38,6 +39,12 @@ const BatchTutors = () => {
           return acc;
         }, {})
       );
+      setEditingSemester(
+        batchList.reduce((acc, batch) => {
+          acc[batch._id] = batch.semester || 1;
+          return acc;
+        }, {})
+      );
       setError('');
     } catch (err) {
       setError(err.message || 'Failed to load batch tutor data');
@@ -59,14 +66,30 @@ const BatchTutors = () => {
     }));
   };
 
+  const handleSemesterChange = (batchId, semester) => {
+    setEditingSemester((prev) => ({
+      ...prev,
+      [batchId]: parseInt(semester),
+    }));
+  };
+
   const handleSaveTutor = async (batchId) => {
     try {
       setSavingBatchId(batchId);
+      
+      // Update tutor
       await api.batches.assignTutor(batchId, selectedTutors[batchId] || null);
-      toast.success('Batch tutor updated');
+      
+      // Update semester if changed
+      const batch = batches.find(b => b._id === batchId);
+      if (batch && editingSemester[batchId] !== batch.semester) {
+        await api.batches.update(batchId, { semester: editingSemester[batchId] });
+      }
+      
+      toast.success('Batch updated successfully');
       await loadData();
     } catch (err) {
-      toast.error(err.message || 'Failed to update batch tutor');
+      toast.error(err.message || 'Failed to update batch');
     } finally {
       setSavingBatchId('');
     }
@@ -75,8 +98,8 @@ const BatchTutors = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-[#6e0718] mb-2">Batch Tutor Management</h1>
-        <p className="text-gray-600">Assign a tutor (teacher) to batches in your department.</p>
+        <h1 className="text-3xl font-bold text-[#6e0718] mb-2">Batch Management</h1>
+        <p className="text-gray-600">Manage batch tutors and semester for your department batches.</p>
       </div>
 
       {error && (
@@ -92,6 +115,7 @@ const BatchTutors = () => {
               <tr className="bg-gray-100">
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Batch</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Department</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Semester</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Duration</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Current Tutor</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Assign Tutor</th>
@@ -101,13 +125,13 @@ const BatchTutors = () => {
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
                     Loading batches...
                   </td>
                 </tr>
               ) : batches.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
                     No batches found for {user?.department}.
                   </td>
                 </tr>
@@ -116,6 +140,19 @@ const BatchTutors = () => {
                   <tr key={batch._id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm font-medium text-gray-800">{batch.batchCode}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{batch.department}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <select
+                        value={editingSemester[batch._id] || batch.semester || 1}
+                        onChange={(e) => handleSemesterChange(batch._id, e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#6e0718] focus:border-transparent"
+                      >
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+                          <option key={sem} value={sem}>
+                            Semester {sem}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {formatDate(batch.startDate)} - {formatDate(batch.endDate)}
                     </td>

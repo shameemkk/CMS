@@ -37,13 +37,13 @@ const serializeBatch = async (batchDoc) => {
 
 // Create batch
 const createBatch = asyncHandler(async (req, res) => {
-  const { department, startDate, endDate } = req.body;
+  const { department, startDate, endDate, semester } = req.body;
   const requesterRole = req.user?.role || req.userRole;
   const requesterDepartment = normalizeDepartment(req.user?.department || req.userDepartment || '');
 
   // Validate required fields
-  if (!startDate || !endDate) {
-    throw new ApiError(400, 'Department, start date, and end date are required');
+  if (!startDate || !endDate || !semester) {
+    throw new ApiError(400, 'Department, start date, end date, and semester are required');
   }
 
   const parsedStartDate = new Date(startDate);
@@ -85,6 +85,7 @@ const createBatch = asyncHandler(async (req, res) => {
     startDate: parsedStartDate,
     endDate: parsedEndDate,
     batchCode,
+    semester: parseInt(semester),
     createdBy: req.user._id,
   });
 
@@ -138,7 +139,7 @@ const getBatchById = asyncHandler(async (req, res) => {
 // Update batch
 const updateBatch = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { department, startDate, endDate, status } = req.body;
+  const { department, startDate, endDate, status, semester } = req.body;
   const requesterRole = req.user?.role || req.userRole;
   const requesterDepartment = normalizeDepartment(req.user?.department || req.userDepartment || '');
 
@@ -174,6 +175,7 @@ const updateBatch = asyncHandler(async (req, res) => {
     batch.endDate = parsedEndDate;
   }
   if (status) batch.status = status;
+  if (semester) batch.semester = parseInt(semester);
 
   // Regenerate batch code if relevant fields changed
   if (department || startDate || endDate) {

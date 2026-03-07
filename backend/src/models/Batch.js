@@ -33,6 +33,12 @@ const batchSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
+    semester: {
+      type: Number,
+      required: [true, 'Semester is required'],
+      min: [1, 'Semester must be at least 1'],
+      max: [8, 'Semester cannot exceed 8'],
+    },
     status: {
       type: String,
       enum: ['active', 'completed', 'archived'],

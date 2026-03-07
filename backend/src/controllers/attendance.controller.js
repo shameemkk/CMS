@@ -1,5 +1,6 @@
 import Attendance from '../models/Attendance.js';
 import User from '../models/User.js';
+import Batch from '../models/Batch.js';
 import { asyncHandler } from '../utils/errorHandler.js';
 
 // Normalize date to UTC midnight for consistent create/find (avoids timezone mismatch)
@@ -57,6 +58,13 @@ export const markAttendance = asyncHandler(async (req, res) => {
 
   const attendanceDate = toAttendanceDate(date);
 
+  // Get student's current semester from batch
+  let studentSemester = null;
+  if (user.role === 'student' && user.batch) {
+    const batch = await Batch.findOne({ batchCode: user.batch });
+    studentSemester = batch?.semester || null;
+  }
+
   const existingAttendance = await Attendance.findOne({
     userId,
     date: attendanceDate,
@@ -99,6 +107,7 @@ export const markAttendance = asyncHandler(async (req, res) => {
     status,
     markedBy: markedByValue,
     department: user.department,
+    semester: studentSemester,
   });
 
   // Format markedBy in response
@@ -161,6 +170,13 @@ export const markAttendanceBulk = asyncHandler(async (req, res) => {
       timeSlot,
     });
 
+    // Get student's current semester from batch
+    let studentSemester = null;
+    if (user.role === 'student' && user.batch) {
+      const batch = await Batch.findOne({ batchCode: user.batch });
+      studentSemester = batch?.semester || null;
+    }
+
     if (existingAttendance) {
       existingAttendance.status = status;
       existingAttendance.markedBy = markedByValue;
@@ -175,6 +191,7 @@ export const markAttendanceBulk = asyncHandler(async (req, res) => {
         status,
         markedBy: markedByValue,
         department: user.department,
+        semester: studentSemester,
       });
       results.push(attendance);
     }
@@ -209,7 +226,7 @@ export const markAttendanceBulk = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const getAttendance = asyncHandler(async (req, res) => {
-  const { userId, date, role, department, timeSlot } = req.query;
+  const { userId, date, role, department, timeSlot, semester } = req.query;
 
   const query = {};
 
@@ -241,6 +258,11 @@ export const getAttendance = asyncHandler(async (req, res) => {
   // Filter by time slot
   if (timeSlot) {
     query.timeSlot = timeSlot;
+  }
+
+  // Filter by semester
+  if (semester) {
+    query.semester = parseInt(semester);
   }
 
   const attendance = await Attendance.find(query)

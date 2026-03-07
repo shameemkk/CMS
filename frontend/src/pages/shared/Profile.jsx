@@ -11,6 +11,7 @@ const Profile = () => {
     fullName: '',
     email: '',
     phone: '',
+    registrationNumber: '',
     department: '',
     role: '',
     status: '',
@@ -66,7 +67,10 @@ const Profile = () => {
       setLoading(true);
       const response = await api.users.updateProfile({
         fullName: profileData.fullName,
-        phone: profileData.phone,
+        ...(profileData.role === 'student' 
+          ? { registrationNumber: profileData.registrationNumber }
+          : { phone: profileData.phone }
+        ),
       });
       setProfileData(response.user || profileData);
       setIsEditMode(false);
@@ -153,7 +157,11 @@ const Profile = () => {
                 <p className="text-gray-600">{profileData.department}</p>
                 <div className="flex items-center gap-4 mt-3">
                   <span className="text-sm text-gray-600">📧 {profileData.email}</span>
-                  <span className="text-sm text-gray-600">📱 {profileData.phone}</span>
+                  {profileData.role === 'student' ? (
+                    <span className="text-sm text-gray-600">🎓 {profileData.registrationNumber || '-'}</span>
+                  ) : (
+                    <span className="text-sm text-gray-600">📱 {profileData.phone || '-'}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -308,16 +316,27 @@ const Profile = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone <span className="text-red-500">*</span>
+                    {profileData.role === 'student' ? 'Registration Number' : 'Phone'} <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={profileData.phone || ''}
-                    onChange={handleProfileChange}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718] focus:border-transparent"
-                  />
+                  {profileData.role === 'student' ? (
+                    <input
+                      type="text"
+                      name="registrationNumber"
+                      value={profileData.registrationNumber || ''}
+                      onChange={handleProfileChange}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718] focus:border-transparent uppercase"
+                    />
+                  ) : (
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={profileData.phone || ''}
+                      onChange={handleProfileChange}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718] focus:border-transparent"
+                    />
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -55,21 +55,16 @@ export const adminLogin = asyncHandler(async (req, res) => {
  * @access  Public
  */
 export const register = asyncHandler(async (req, res) => {
-  const { fullName, email, phone, department, role, password, confirmPassword, semester, specialization, batch } = req.body;
+  const { fullName, email, phone, registrationNumber, department, role, password, confirmPassword, specialization, batch } = req.body;
 
   // Validation
-  if (!fullName || !email || !phone || !department || !role || !password || !confirmPassword) {
+  const isStudent = role?.toLowerCase() === 'student';
+  const contactField = isStudent ? registrationNumber : phone;
+  
+  if (!fullName || !email || !contactField || !department || !role || !password || !confirmPassword) {
     return res.status(400).json({
       success: false,
       message: 'All fields are required',
-    });
-  }
-
-  // Validate semester for students
-  if (role.toLowerCase() === 'student' && !semester) {
-    return res.status(400).json({
-      success: false,
-      message: 'Semester is required for students',
     });
   }
 
@@ -127,17 +122,18 @@ export const register = asyncHandler(async (req, res) => {
   const userData = {
     fullName,
     email: email.toLowerCase(),
-    phone,
     department: normalizedDepartment,
     role: role.toLowerCase(),
     password,
     status: 'pending',
   };
 
-  // Add semester only for students
+  // Add registrationNumber for students, phone for others
   if (role.toLowerCase() === 'student') {
-    userData.semester = parseInt(semester);
+    userData.registrationNumber = registrationNumber;
     userData.batch = batch.toUpperCase().trim();
+  } else {
+    userData.phone = phone;
   }
 
   // Add specialization for teachers and HODs
@@ -148,20 +144,27 @@ export const register = asyncHandler(async (req, res) => {
   // Create user with pending status
   const user = await User.create(userData);
 
+  // Populate batch to get semester
+  let populatedUser = user;
+  if (user.role === 'student') {
+    populatedUser = await User.findById(user._id).populate('batch');
+  }
+
   const responseUser = {
     id: user._id,
     fullName: user.fullName,
     email: user.email,
-    phone: user.phone,
     department: user.department,
     role: user.role,
     status: user.status,
   };
 
-  // Include semester in response for students
+  // Include registrationNumber and batch info for students, phone for others
   if (user.role === 'student') {
-    responseUser.semester = user.semester;
+    responseUser.registrationNumber = user.registrationNumber;
     responseUser.batch = user.batch;
+  } else {
+    responseUser.phone = user.phone;
   }
 
   // Include specialization for teachers and HODs
@@ -220,6 +223,12 @@ export const login = asyncHandler(async (req, res) => {
     });
   }
 
+  // Populate batch for students to get semester
+  let batchData = null;
+  if (user.role === 'student' && user.batch) {
+    batchData = await Batch.findOne({ batchCode: user.batch });
+  }
+
   // Generate token
   const token = generateToken({
     userId: user._id.toString(),
@@ -232,16 +241,18 @@ export const login = asyncHandler(async (req, res) => {
     id: user._id,
     fullName: user.fullName,
     email: user.email,
-    phone: user.phone,
     department: user.department,
     role: user.role,
     status: user.status,
   };
 
-  // Include semester for students
+  // Include registrationNumber and batch info for students, phone for others
   if (user.role === 'student') {
-    userResponse.semester = user.semester;
+    userResponse.registrationNumber = user.registrationNumber;
     userResponse.batch = user.batch;
+    userResponse.semester = batchData?.semester || null;
+  } else {
+    userResponse.phone = user.phone;
   }
 
   res.status(200).json({
@@ -326,21 +337,29 @@ export const getMe = asyncHandler(async (req, res) => {
     });
   }
 
+  // Populate batch for students to get semester
+  let batchData = null;
+  if (user.role === 'student' && user.batch) {
+    batchData = await Batch.findOne({ batchCode: user.batch });
+  }
+
   const userResponse = {
     id: user._id,
     fullName: user.fullName,
     email: user.email,
-    phone: user.phone,
     department: user.department,
     role: user.role,
     status: user.status,
     createdAt: user.createdAt,
   };
 
-  // Include semester for students
+  // Include registrationNumber and batch info for students, phone for others
   if (user.role === 'student') {
-    userResponse.semester = user.semester;
+    userResponse.registrationNumber = user.registrationNumber;
     userResponse.batch = user.batch;
+    userResponse.semester = batchData?.semester || null;
+  } else {
+    userResponse.phone = user.phone;
   }
 
   res.status(200).json({

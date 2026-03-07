@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Batch from '../models/Batch.js';
 import { asyncHandler } from '../utils/errorHandler.js';
 
 /**
@@ -16,21 +17,29 @@ export const getProfile = asyncHandler(async (req, res) => {
     });
   }
 
+  // Populate batch for students to get semester
+  let batchData = null;
+  if (user.role === 'student' && user.batch) {
+    batchData = await Batch.findOne({ batchCode: user.batch });
+  }
+
   const userResponse = {
     id: user._id,
     fullName: user.fullName,
     email: user.email,
-    phone: user.phone,
     department: user.department,
     role: user.role,
     status: user.status,
     createdAt: user.createdAt,
   };
 
-  // Include semester for students
+  // Include registrationNumber and batch info for students, phone for others
   if (user.role === 'student') {
-    userResponse.semester = user.semester;
+    userResponse.registrationNumber = user.registrationNumber;
     userResponse.batch = user.batch;
+    userResponse.semester = batchData?.semester || null;
+  } else {
+    userResponse.phone = user.phone;
   }
 
   res.status(200).json({
@@ -45,18 +54,10 @@ export const getProfile = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { fullName, phone } = req.body;
+  const { fullName, phone, registrationNumber } = req.body;
 
-  const updateData = {};
-  if (fullName) updateData.fullName = fullName;
-  if (phone) updateData.phone = phone;
-
-  const user = await User.findByIdAndUpdate(
-    req.userId,
-    updateData,
-    { new: true, runValidators: true }
-  );
-
+  const user = await User.findById(req.userId);
+  
   if (!user) {
     return res.status(404).json({
       success: false,
@@ -64,20 +65,38 @@ export const updateProfile = asyncHandler(async (req, res) => {
     });
   }
 
+  const updateData = {};
+  if (fullName) updateData.fullName = fullName;
+  
+  // Update registrationNumber for students, phone for others
+  if (user.role === 'student' && registrationNumber) {
+    updateData.registrationNumber = registrationNumber;
+  } else if (user.role !== 'student' && phone) {
+    updateData.phone = phone;
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    req.userId,
+    updateData,
+    { new: true, runValidators: true }
+  );
+
   const userResponse = {
-    id: user._id,
-    fullName: user.fullName,
-    email: user.email,
-    phone: user.phone,
-    department: user.department,
-    role: user.role,
-    status: user.status,
+    id: updatedUser._id,
+    fullName: updatedUser.fullName,
+    email: updatedUser.email,
+    department: updatedUser.department,
+    role: updatedUser.role,
+    status: updatedUser.status,
   };
 
-  // Include semester for students
-  if (user.role === 'student') {
-    userResponse.semester = user.semester;
-    userResponse.batch = user.batch;
+  // Include registrationNumber for students, phone for others
+  if (updatedUser.role === 'student') {
+    userResponse.registrationNumber = updatedUser.registrationNumber;
+    userResponse.semester = updatedUser.semester;
+    userResponse.batch = updatedUser.batch;
+  } else {
+    userResponse.phone = updatedUser.phone;
   }
 
   res.status(200).json({
@@ -103,6 +122,7 @@ export const getPendingUsers = asyncHandler(async (req, res) => {
       fullName: user.fullName,
       email: user.email,
       phone: user.phone,
+      registrationNumber: user.registrationNumber,
       department: user.department,
       batch: user.batch,
       role: user.role,
@@ -145,6 +165,7 @@ export const getAllUsers = asyncHandler(async (req, res) => {
       fullName: user.fullName,
       email: user.email,
       phone: user.phone,
+      registrationNumber: user.registrationNumber,
       department: user.department,
       batch: user.batch,
       role: user.role,
@@ -191,6 +212,7 @@ export const updateUserStatus = asyncHandler(async (req, res) => {
       fullName: user.fullName,
       email: user.email,
       phone: user.phone,
+      registrationNumber: user.registrationNumber,
       department: user.department,
       role: user.role,
       status: user.status,
@@ -217,6 +239,17 @@ export const getUsersByRole = asyncHandler(async (req, res) => {
 
   const users = await User.find(query).sort({ fullName: 1 });
 
+  // Get batch data for students to include semester
+  const batchCodes = users
+    .filter(u => u.role === 'student' && u.batch)
+    .map(u => u.batch);
+  
+  const batches = await Batch.find({ batchCode: { $in: batchCodes } });
+  const batchMap = batches.reduce((acc, batch) => {
+    acc[batch.batchCode] = batch;
+    return acc;
+  }, {});
+
   res.status(200).json({
     success: true,
     count: users.length,
@@ -225,8 +258,9 @@ export const getUsersByRole = asyncHandler(async (req, res) => {
       fullName: user.fullName,
       email: user.email,
       phone: user.phone,
+      registrationNumber: user.registrationNumber,
       department: user.department,
-      semester: user.semester,
+      semester: user.role === 'student' && user.batch ? batchMap[user.batch]?.semester : undefined,
       batch: user.batch,
       role: user.role,
     })),
@@ -404,44 +438,43 @@ export const promoteStudents = asyncHandler(async (req, res) => {
     ? {} 
     : { department: req.userDepartment };
 
-  // Find all approved students in the department
-  const students = await User.find({
-    role: 'student',
-    status: 'approved',
+  // Find all active batches in the department
+  const batches = await Batch.find({
+    status: 'active',
     ...departmentFilter,
   });
 
-  if (students.length === 0) {
+  if (batches.length === 0) {
     return res.status(404).json({
       success: false,
-      message: 'No students found to promote',
+      message: 'No active batches found to promote',
     });
   }
 
   let promotedCount = 0;
-  let passoutCount = 0;
+  let completedCount = 0;
 
-  // Promote each student
-  for (const student of students) {
-    if (student.semester >= 8) {
-      // Mark as passout if semester 8 or higher
-      student.status = 'passout';
-      passoutCount++;
+  // Promote each batch
+  for (const batch of batches) {
+    if (batch.semester >= 8) {
+      // Mark batch as completed if semester 8 or higher
+      batch.status = 'completed';
+      completedCount++;
     } else {
       // Promote to next semester
-      student.semester = student.semester + 1;
+      batch.semester = batch.semester + 1;
       promotedCount++;
     }
-    await student.save();
+    await batch.save();
   }
 
   res.status(200).json({
     success: true,
-    message: `Successfully promoted ${promotedCount} student(s) and marked ${passoutCount} student(s) as passout`,
+    message: `Successfully promoted ${promotedCount} batch(es) and marked ${completedCount} batch(es) as completed`,
     stats: {
-      total: students.length,
+      total: batches.length,
       promoted: promotedCount,
-      passout: passoutCount,
+      completed: completedCount,
     },
   });
 });
@@ -455,7 +488,7 @@ export const promoteStudents = asyncHandler(async (req, res) => {
  */
 export const updateUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { fullName, phone, semester, batch } = req.body;
+  const { fullName, phone, registrationNumber, batch } = req.body;
 
   const user = await User.findById(id);
 
@@ -476,26 +509,46 @@ export const updateUser = asyncHandler(async (req, res) => {
 
   // Update fields
   if (fullName) user.fullName = fullName;
-  if (phone) user.phone = phone;
-  if (semester && user.role === 'student') user.semester = semester;
+  
+  // Update registrationNumber for students, phone for others
+  if (user.role === 'student' && registrationNumber) {
+    user.registrationNumber = registrationNumber;
+  } else if (user.role !== 'student' && phone) {
+    user.phone = phone;
+  }
+  
   if (batch && user.role === 'student') user.batch = batch.toUpperCase().trim();
 
   await user.save();
 
+  // Get batch data for semester
+  let batchData = null;
+  if (user.role === 'student' && user.batch) {
+    batchData = await Batch.findOne({ batchCode: user.batch });
+  }
+
+  const userResponse = {
+    id: user._id,
+    fullName: user.fullName,
+    email: user.email,
+    department: user.department,
+    role: user.role,
+    status: user.status,
+  };
+
+  // Include registrationNumber and batch info for students, phone for others
+  if (user.role === 'student') {
+    userResponse.registrationNumber = user.registrationNumber;
+    userResponse.batch = user.batch;
+    userResponse.semester = batchData?.semester || null;
+  } else {
+    userResponse.phone = user.phone;
+  }
+
   res.status(200).json({
     success: true,
     message: 'User updated successfully',
-    user: {
-      id: user._id,
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone,
-      department: user.department,
-      role: user.role,
-      semester: user.semester,
-      batch: user.batch,
-      status: user.status,
-    },
+    user: userResponse,
   });
 });
 
