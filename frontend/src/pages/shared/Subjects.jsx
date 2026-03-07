@@ -593,14 +593,16 @@ const Subjects = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6e0718]"
                 >
                   <option value="">-- No Teacher --</option>
-                  {teachers.map((teacher) => (
-                    <option key={teacher.id} value={teacher.id}>
-                      {teacher.fullName} {teacher.specialization ? `(${teacher.specialization})` : ''}
-                    </option>
-                  ))}
+                  {teachers
+                    .filter(teacher => teacher.department === assigningSubject?.department)
+                    .map((teacher) => (
+                      <option key={teacher.id} value={teacher.id}>
+                        {teacher.fullName} {teacher.specialization ? `(${teacher.specialization})` : ''}
+                      </option>
+                    ))}
                 </select>
                 <p className="mt-1 text-xs text-gray-500">
-                  Select a teacher to assign to this subject, or choose "No Teacher" to unassign.
+                  Showing teachers from {assigningSubject?.department} department. Select a teacher to assign, or choose "No Teacher" to unassign.
                 </p>
               </div>
 
